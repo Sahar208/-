@@ -5,26 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>המוזיאון הפיזיטלי 360</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #f8fafc; user-select: none; }
+    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #0f172a; user-select: none; }
     #scene-container {
       position: fixed; inset: 0; z-index: 1;
-      touch-action: none; /* גרירה חופשית 360° רק על הסצנה — מאפשר גלילה תקינה בטפסים! */
-      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+      touch-action: none;
+      cursor: grab;
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s ease, filter 0.38s ease;
     }
-    .scene-portal-dive { transform: scale(1.28); opacity: 0.08; filter: blur(6px); }
+    #scene-container:active { cursor: grabbing; }
+    .scene-portal-dive { transform: scale(1.26); opacity: 0.08; filter: blur(6px); }
     .glass-panel {
       background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(14px);
-      border: 1px solid rgba(226, 232, 240, 0.9);
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+      border: 1px solid rgba(226, 232, 240, 0.92);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
     }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 
-    /* התאמת הדפסה לשלט המוזיאוני הפיזיטלי */
     @media print {
       body * { visibility: hidden !important; }
       #printable-plaque-area, #printable-plaque-area * { visibility: visible !important; }
@@ -43,7 +44,10 @@
     <h2 class="text-xl font-black text-slate-800">פותח את שערי המוזיאון 360...</h2>
   </div>
 
-  <!-- סרגל עליון מינימליסטי ומותאם לנייד -->
+  <!-- זירת ה-Three.js התלת-ממדית -->
+  <div id="scene-container"></div>
+
+  <!-- סרגל עליון מינימליסטי (מותאם במיוחד לטלפון) -->
   <header class="fixed top-3 inset-x-3 z-30 flex items-center justify-between gap-2 pointer-events-none">
     <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto max-w-[74vw]">
       <button onclick="enterLobby()" class="font-black text-base text-sky-700 hover:text-sky-500 shrink-0" title="חזרה לחדר הכניסה">
@@ -79,16 +83,15 @@
     <p id="room-welcome-text" class="text-xs md:text-sm font-medium text-slate-700"></p>
   </div>
 
-  <!-- פקדי צפייה בתוך יצירה (זום, נקודות חמות, הקראה, מצב תצוגה ומדבקות פרגון) -->
+  <!-- פקדי צפייה בתוך יצירה -->
   <div id="inside-exhibit-hud" class="hidden fixed bottom-3 inset-x-3 z-30 flex flex-col items-center gap-2 pointer-events-none">
-    <!-- כרטיס נקודה חמה פעילה -->
     <div id="active-hotspot-box" class="hidden glass-panel p-4 rounded-3xl max-w-md w-full pointer-events-auto border-2 border-amber-400">
       <div class="flex justify-between items-start gap-2">
         <div class="flex items-center gap-1.5 text-amber-800 font-black text-sm">
           <span>📍</span> <span id="hs-detail-title">הסבר</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <button onclick="speakCurrentHotspot()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-lg" title="הקרא טקסט">🔊 הקרא</button>
+          <button onclick="speakCurrentHotspot()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-lg">🔊 הקרא</button>
           <button onclick="closeHotspotCard()" class="text-slate-400 hover:text-slate-700 font-bold text-sm px-1">✕</button>
         </div>
       </div>
@@ -99,14 +102,12 @@
       </a>
     </div>
 
-    <!-- מדבקות פרגון מהירות -->
     <div id="reactions-bar" class="glass-panel px-2.5 py-1.5 rounded-2xl flex items-center gap-1.5 pointer-events-auto">
-      <button onclick="sendReaction('learned')" id="react-btn-learned" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 transition">💡 למדתי חדש <span id="react-cnt-learned">0</span></button>
-      <button onclick="sendReaction('creative')" id="react-btn-creative" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 transition">🎨 יצירתיות <span id="react-cnt-creative">0</span></button>
-      <button onclick="sendReaction('bravo')" id="react-btn-bravo" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 transition">👏 כל הכבוד <span id="react-cnt-bravo">0</span></button>
+      <button onclick="sendReaction('learned')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 transition">💡 למדתי חדש <span id="react-cnt-learned">0</span></button>
+      <button onclick="sendReaction('creative')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 transition">🎨 יצירתיות <span id="react-cnt-creative">0</span></button>
+      <button onclick="sendReaction('bravo')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 transition">👏 כל הכבוד <span id="react-cnt-bravo">0</span></button>
     </div>
 
-    <!-- סרגל שליטה ראשי ביצירה -->
     <div class="glass-panel px-2.5 py-2 rounded-2xl flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto">
       <button onclick="exitExhibitToZone()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl">↩️ לגלריה</button>
       <button onclick="adjustZoom(-10)" class="bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-xl font-black text-sm" title="התקרב">➕</button>
@@ -116,7 +117,7 @@
     </div>
   </div>
 
-  <!-- כרטיס פרטי יצירה + הקראה קולית -->
+  <!-- כרטיס פרטי יצירה -->
   <div id="exhibit-info-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
       <div class="flex justify-between items-start">
@@ -133,21 +134,6 @@
         <button onclick="stopSpeech(); closeModal('exhibit-info-modal')" class="flex-1 bg-slate-800 text-white font-bold py-2.5 rounded-xl text-sm">סגור</button>
       </div>
     </div>
-  </div>
-
-  <!-- זירת ה-360 האימרסיבית (A-Frame WebGL) -->
-  <div id="scene-container">
-    <a-scene id="vr-scene" vr-mode-ui="enabled: false" cursor="rayOrigin: mouse" raycaster="objects: .clickable">
-      <a-entity id="camera-yaw" position="0 1.6 0">
-        <a-entity id="camera-pitch">
-          <a-camera id="main-camera" fov="80" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-        </a-entity>
-      </a-entity>
-
-      <a-sky id="museum-sky" radius="50" rotation="0 -90 0" color="#e0f2fe"></a-sky>
-      <a-circle id="museum-floor" position="0 0 0" rotation="-90 0 0" radius="14" color="#e2e8f0" opacity="0.2"></a-circle>
-      <a-entity id="room-objects"></a-entity>
-    </a-scene>
   </div>
 
   <!-- מודאל קוד גישה להעלאת תוצר -->
@@ -214,7 +200,7 @@
     </div>
   </div>
 
-  <!-- חדר בקרה וניהול -->
+  <!-- חדר בקרה וניהול (יציב ללא קפיצת לשוניות!) -->
   <div id="admin-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
       <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
@@ -226,6 +212,10 @@
           <button onclick="logoutAdmin()" class="bg-indigo-500 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
           <button onclick="closeModal('admin-modal')" class="bg-white/20 w-8 h-8 rounded-full font-bold">✕</button>
         </div>
+      </div>
+
+      <div id="api-version-warning" class="hidden bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-bold text-amber-900">
+        ⚠️ שים לב: נראה שסקריפט השרת (Code.gs) טרם נפרס לגרסה 2.1. יש ללחוץ ב-Apps Script על: פרוס ← ניהול פריסות ← עריכה (עיפרון) ← גרסה חדשה ← פרוס.
       </div>
 
       <div class="flex border-b border-slate-200 bg-slate-50 px-3 pt-2 gap-1.5 text-xs md:text-sm font-bold overflow-x-auto">
@@ -254,7 +244,7 @@
         <div>
           <div class="flex justify-between items-center mb-3">
             <h3 class="font-black text-lg text-slate-800">📍 עורך נקודות חמות</h3>
-            <button onclick="closeModal('hotspot-editor-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+            <button onclick="closeHotspotEditor()" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
           </div>
           <div id="editor-hotspots-list" class="space-y-3 max-h-[52vh] overflow-y-auto pr-1"></div>
         </div>
@@ -279,7 +269,7 @@
     </div>
   </div>
 
-  <!-- מודאל שלט QR פיזיטלי להדפסה לתלייה ליד התוצר בבית הספר -->
+  <!-- מודאל שלט QR פיזיטלי להדפסה -->
   <div id="plaque-modal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center">
       <div id="printable-plaque-area" class="border-4 border-sky-600 rounded-3xl p-6 bg-gradient-to-b from-white to-sky-50 text-center">
@@ -300,8 +290,82 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
+    const EXPECTED_API_VERSION = "2.1";
 
-    // ==================== רכיבי A-Frame מותאמים (עברית חדה ב-Canvas + מסך קעור IMAX) ====================
+    let scene, camera, renderer, skyMesh, floorMesh, roomGroup;
+    let clickableObjects = [];
+    let animatedDoors = [];
+    let pulsingPins = [];
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    let camLon = 0, camLat = 0, targetFov = 75;
+    let isDragging = false, prevX = 0, prevY = 0, dragDistance = 0;
+
+    let museumData = {
+      apiVersion: "",
+      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "", themeColor: "#0ea5e9", status: "approved", welcomeText: "" }],
+      exhibits: [],
+      staff: [],
+      settings: {}
+    };
+    let currentUser = null;
+    let currentAuthCode = "";
+    let currentAdminTab = "pending";
+    let verifiedUploadPin = "";
+    let currentView = "lobby";
+    let activeZoneId = null;
+    let activeExhibit = null;
+    let exhibitViewMode = "curved";
+    let pendingDeepLinkExhibit = new URLSearchParams(window.location.search).get("exhibit");
+
+    const imageCache = {};
+    const imageInFlight = {};
+    const audioCache = {};
+    let editingExhibitId = null, draftHotspots = [];
+    let mediaRecorder = null, audioChunks = [], recTimerInterval = null, recSeconds = 0;
+    let uploadingAudioCount = 0;
+
+    function createPanoramaCanvas(type) {
+      const c = document.createElement("canvas");
+      c.width = 2048; c.height = 1024;
+      const ctx = c.getContext("2d");
+
+      const g = ctx.createLinearGradient(0, 0, 0, 1024);
+      if (type === "lobby") {
+        g.addColorStop(0, "#0c4a6e");
+        g.addColorStop(0.28, "#38bdf8");
+        g.addColorStop(0.50, "#f0f9ff");
+        g.addColorStop(0.62, "#fef3c7");
+        g.addColorStop(0.74, "#e2e8f0");
+        g.addColorStop(1, "#cbd5e1");
+      } else {
+        g.addColorStop(0, "#dbeafe");
+        g.addColorStop(0.45, "#f8fafc");
+        g.addColorStop(0.75, "#e2e8f0");
+        g.addColorStop(1, "#cbd5e1");
+      }
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 2048, 1024);
+
+      ctx.strokeStyle = type === "lobby" ? "rgba(255,255,255,0.45)" : "rgba(14,165,233,0.16)";
+      ctx.lineWidth = type === "lobby" ? 5 : 3;
+      for (let x = 0; x < 2048; x += 128) {
+        ctx.beginPath();
+        ctx.arc(x + 64, 512, 160, Math.PI, 0);
+        ctx.stroke();
+        ctx.fillStyle = type === "lobby" ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.22)";
+        ctx.fillRect(x + 54, 512, 20, 360);
+      }
+
+      ctx.fillStyle = type === "lobby" ? "rgba(251, 191, 36, 0.35)" : "rgba(56, 189, 248, 0.2)";
+      ctx.fillRect(0, 510, 2048, 4);
+      return c;
+    }
+
+    const fallbackLobbyCanvas = createPanoramaCanvas("lobby");
+    const fallbackGalleryCanvas = createPanoramaCanvas("gallery");
+
     function drawRoundedRect(ctx, x, y, w, h, r) {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -316,236 +380,235 @@
       ctx.closePath();
     }
 
-    function applyColorSpace(tex) {
-      if ("colorSpace" in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    function makeHebrewSignTexture(title, subtitle, bg, accent, textColor) {
+      const c = document.createElement("canvas");
+      c.width = 680; c.height = subtitle ? 190 : 120;
+      const ctx = c.getContext("2d");
+
+      drawRoundedRect(ctx, 8, 8, c.width - 16, c.height - 16, 26);
+      ctx.fillStyle = bg || "#0f172a";
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = accent || "#38bdf8";
+      ctx.stroke();
+
+      ctx.direction = "rtl";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (subtitle) {
+        ctx.font = "900 42px Rubik, Arial, sans-serif";
+        ctx.fillStyle = textColor || "#ffffff";
+        ctx.fillText(title || "", c.width / 2, c.height * 0.38, c.width - 48);
+
+        ctx.font = "600 28px Rubik, Arial, sans-serif";
+        ctx.fillStyle = accent || "#38bdf8";
+        ctx.fillText(subtitle, c.width / 2, c.height * 0.73, c.width - 48);
+      } else {
+        ctx.font = "900 42px Rubik, Arial, sans-serif";
+        ctx.fillStyle = textColor || "#ffffff";
+        ctx.fillText(title || "", c.width / 2, c.height / 2, c.width - 48);
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      return tex;
     }
 
-    // שלט עברית RTL חד וברור ב-3D (מחליף את <a-text> שלא תומך בעברית)
-    AFRAME.registerComponent("hebrew-sign", {
-      schema: {
-        title: { type: "string", default: "" },
-        subtitle: { type: "string", default: "" },
-        bg: { type: "string", default: "#0f172a" },
-        accent: { type: "string", default: "#38bdf8" },
-        textColor: { type: "string", default: "#ffffff" },
-        w: { type: "number", default: 640 },
-        h: { type: "number", default: 180 }
-      },
-      init: function () { this.renderCanvas(); },
-      update: function () { this.renderCanvas(); },
-      renderCanvas: function () {
-        const d = this.data;
-        const canvas = document.createElement("canvas");
-        canvas.width = d.w;
-        canvas.height = d.h;
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, d.w, d.h);
+    function makeHotspotPinTexture(num, label) {
+      const c = document.createElement("canvas");
+      c.width = 360; c.height = 175;
+      const ctx = c.getContext("2d");
 
-        drawRoundedRect(ctx, 8, 8, d.w - 16, d.h - 16, 26);
-        ctx.fillStyle = d.bg;
-        ctx.fill();
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = d.accent;
-        ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(180, 54, 46, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.38)";
+      ctx.fill();
 
-        ctx.direction = "rtl";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+      ctx.beginPath();
+      ctx.arc(180, 54, 32, 0, Math.PI * 2);
+      ctx.fillStyle = "#0284c7";
+      ctx.fill();
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
 
-        if (d.subtitle) {
-          ctx.font = "900 42px Rubik, Arial, sans-serif";
-          ctx.fillStyle = d.textColor;
-          ctx.fillText(d.title, d.w / 2, d.h * 0.38, d.w - 44);
+      ctx.font = "900 34px Rubik, Arial, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(num), 180, 56);
 
-          ctx.font = "600 28px Rubik, Arial, sans-serif";
-          ctx.fillStyle = d.accent;
-          ctx.fillText(d.subtitle, d.w / 2, d.h * 0.72, d.w - 44);
-        } else {
-          ctx.font = "900 44px Rubik, Arial, sans-serif";
-          ctx.fillStyle = d.textColor;
-          ctx.fillText(d.title, d.w / 2, d.h / 2, d.w - 44);
-        }
+      drawRoundedRect(ctx, 18, 110, 324, 54, 18);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#38bdf8";
+      ctx.stroke();
 
-        const tex = new THREE.CanvasTexture(canvas);
-        applyColorSpace(tex);
-        tex.needsUpdate = true;
+      ctx.direction = "rtl";
+      ctx.font = "700 24px Rubik, Arial, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label || ("נקודה " + num), 180, 137, 300);
 
-        const applyMat = () => {
-          const mesh = this.el.getObject3D("mesh");
-          if (mesh) {
-            if (mesh.material && mesh.material.map) mesh.material.map.dispose();
-            mesh.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-          }
-        };
-        if (this.el.getObject3D("mesh")) applyMat();
-        else this.el.addEventListener("object3dset", applyMat, { once: true });
-      },
-      remove: function () {
-        const mesh = this.el.getObject3D("mesh");
-        if (mesh && mesh.material) {
-          if (mesh.material.map) mesh.material.map.dispose();
-          mesh.material.dispose();
-        }
-      }
-    });
-
-    // תגית נקודה חמה מרחפת (מספר עגול + כותרת בעברית)
-    AFRAME.registerComponent("hotspot-pin", {
-      schema: {
-        num: { type: "string", default: "1" },
-        label: { type: "string", default: "" }
-      },
-      init: function () {
-        const d = this.data;
-        const canvas = document.createElement("canvas");
-        canvas.width = 360;
-        canvas.height = 170;
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, 360, 170);
-
-        // עיגול פועם חיצוני + מרכזי
-        ctx.beginPath();
-        ctx.arc(180, 54, 44, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(180, 54, 32, 0, Math.PI * 2);
-        ctx.fillStyle = "#0284c7";
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = "#ffffff";
-        ctx.stroke();
-
-        ctx.font = "900 34px Rubik, Arial, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(d.num, 180, 56);
-
-        // תווית טקסט בעברית מתחת לעיגול
-        drawRoundedRect(ctx, 20, 108, 320, 52, 18);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#38bdf8";
-        ctx.stroke();
-
-        ctx.direction = "rtl";
-        ctx.font = "700 24px Rubik, Arial, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(d.label || ("נקודה " + d.num), 180, 134, 300);
-
-        const tex = new THREE.CanvasTexture(canvas);
-        applyColorSpace(tex);
-        const applyMat = () => {
-          const mesh = this.el.getObject3D("mesh");
-          if (mesh) mesh.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-        };
-        if (this.el.getObject3D("mesh")) applyMat();
-        else this.el.addEventListener("object3dset", applyMat, { once: true });
-      }
-    });
-
-    // מסך קעור אימרסיבי (IMAX) להצגת תמונות רגילות ללא שום עיוות!
-    AFRAME.registerComponent("curved-exhibit", {
-      schema: {
-        radius: { type: "number", default: 6.2 },
-        height: { type: "number", default: 4.8 },
-        thetaLength: { type: "number", default: 1.7 }
-      },
-      init: function () {
-        const d = this.data;
-        const thetaStart = Math.PI - d.thetaLength / 2;
-        const geo = new THREE.CylinderGeometry(d.radius, d.radius, d.height, 56, 1, true, thetaStart, d.thetaLength);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9, side: THREE.BackSide });
-        this.el.setObject3D("mesh", new THREE.Mesh(geo, mat));
-      },
-      remove: function () {
-        const mesh = this.el.getObject3D("mesh");
-        if (mesh) {
-          if (mesh.geometry) mesh.geometry.dispose();
-          if (mesh.material) {
-            if (mesh.material.map) mesh.material.map.dispose();
-            mesh.material.dispose();
-          }
-        }
-      }
-    });
-
-    // ==================== מצב גלובלי וזיכרון מטמון ====================
-    let museumData = {
-      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "", themeColor: "#0ea5e9", status: "approved", welcomeText: "" }],
-      exhibits: [],
-      staff: [],
-      settings: {}
-    };
-    let currentUser = null;
-    let currentAuthCode = "";
-    let verifiedUploadPin = "";
-    let currentView = "lobby";
-    let activeZoneId = null;
-    let activeExhibit = null;
-    let exhibitViewMode = "auto"; // "curved" או "sphere"
-    let currentFov = 80;
-    let pendingDeepLinkExhibit = new URLSearchParams(window.location.search).get("exhibit");
-
-    const imageCache = {};     // url -> HTMLImageElement
-    const imageInFlight = {};  // url -> Promise<HTMLImageElement>
-    const audioCache = {};     // fileId -> dataUrl
-
-    let camYaw = 0, camPitch = 0, isDragging = false, prevX = 0, prevY = 0, dragDistance = 0;
-    let editingExhibitId = null, draftHotspots = [];
-    let mediaRecorder = null, audioChunks = [], recTimerInterval = null, recSeconds = 0;
-
-    // ==================== אתחול ====================
-    document.addEventListener("DOMContentLoaded", () => {
-      setupFree360Controls();
-      setTimeout(() => {
-        const loader = document.getElementById("loader");
-        if (loader && !loader.classList.contains("hidden")) {
-          loader.classList.add("hidden");
-          renderZonesNav();
-          enterLobby(true);
-        }
-      }, 1400);
-      refreshData();
-    });
-
-    function escapeHtml(str) {
-      return String(str || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      return tex;
     }
 
-    // ==================== שליטת 360° חופשית באצבע (טלפון) ובעכבר ====================
-    function setupFree360Controls() {
+    function initThreeEngine() {
       const container = document.getElementById("scene-container");
-      const updateAngles = () => {
-        camPitch = Math.max(-82, Math.min(82, camPitch));
-        document.getElementById("camera-yaw").setAttribute("rotation", `0 ${camYaw} 0`);
-        document.getElementById("camera-pitch").setAttribute("rotation", `${camPitch} 0 0`);
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
+
+      const skyGeo = new THREE.SphereGeometry(50, 48, 32);
+      skyGeo.scale(-1, 1, 1);
+      const initTex = new THREE.CanvasTexture(fallbackLobbyCanvas);
+      initTex.encoding = THREE.sRGBEncoding;
+      const skyMat = new THREE.MeshBasicMaterial({ map: initTex });
+      skyMesh = new THREE.Mesh(skyGeo, skyMat);
+      skyMesh.rotation.y = -Math.PI / 2;
+      scene.add(skyMesh);
+
+      const floorGeo = new THREE.CircleGeometry(15, 48);
+      const floorMat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9, transparent: true, opacity: 0.22 });
+      floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.position.y = -2.1;
+      scene.add(floorMesh);
+
+      roomGroup = new THREE.Group();
+      scene.add(roomGroup);
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      setup360Controls(renderer.domElement);
+      animateLoop();
+    }
+
+    function setSkyFromCanvas(canvas) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      if (skyMesh.material.map) skyMesh.material.map.dispose();
+      skyMesh.material.map = tex;
+      skyMesh.material.needsUpdate = true;
+    }
+
+    function setSkyFromImage(img) {
+      const tex = new THREE.Texture(img);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.minFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      if (skyMesh.material.map) skyMesh.material.map.dispose();
+      skyMesh.material.map = tex;
+      skyMesh.material.needsUpdate = true;
+    }
+
+    function clearRoomObjects() {
+      clickableObjects = [];
+      animatedDoors = [];
+      pulsingPins = [];
+      while (roomGroup.children.length > 0) {
+        const obj = roomGroup.children[0];
+        obj.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+            else { if (child.material.map) child.material.map.dispose(); child.material.dispose(); }
+          }
+        });
+        roomGroup.remove(obj);
+      }
+    }
+
+    function animateLoop() {
+      requestAnimationFrame(animateLoop);
+
+      camLat = Math.max(-80, Math.min(80, camLat));
+      const phi = THREE.MathUtils.degToRad(90 - camLat);
+      const theta = THREE.MathUtils.degToRad(camLon - 90);
+      camera.lookAt(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta)
+      );
+
+      if (Math.abs(camera.fov - targetFov) > 0.1) {
+        camera.fov += (targetFov - camera.fov) * 0.16;
+        camera.updateProjectionMatrix();
+      }
+
+      animatedDoors.forEach(d => {
+        if (d.opening) {
+          d.progress = Math.min(1, d.progress + 0.055);
+          const ease = 1 - Math.pow(1 - d.progress, 3);
+          d.leftPivot.rotation.y = ease * 1.85;
+          d.rightPivot.rotation.y = -ease * 1.85;
+        }
+      });
+
+      const t = performance.now() * 0.004;
+      pulsingPins.forEach((pin, idx) => {
+        const s = 1 + Math.sin(t + idx) * 0.07;
+        pin.scale.set(s, s, 1);
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    function setup360Controls(domEl) {
+      const handleTap = (clientX, clientY) => {
+        if (dragDistance > 12) return;
+        const rect = domEl.getBoundingClientRect();
+        pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(clickableObjects, false);
+        if (hits.length > 0 && hits[0].object.userData && typeof hits[0].object.userData.onClick === "function") {
+          hits[0].object.userData.onClick();
+        }
       };
 
-      container.addEventListener("mousedown", e => {
+      domEl.addEventListener("mousedown", e => {
         isDragging = true; prevX = e.clientX; prevY = e.clientY; dragDistance = 0;
       });
       window.addEventListener("mousemove", e => {
         if (!isDragging) return;
         const dx = e.clientX - prevX, dy = e.clientY - prevY;
         dragDistance += Math.abs(dx) + Math.abs(dy);
-        camYaw += dx * 0.26;
-        camPitch += dy * 0.26;
+        camLon -= dx * 0.22;
+        camLat += dy * 0.22;
         prevX = e.clientX; prevY = e.clientY;
-        updateAngles();
       });
-      window.addEventListener("mouseup", () => { isDragging = false; });
+      window.addEventListener("mouseup", e => {
+        if (isDragging) {
+          isDragging = false;
+          handleTap(e.clientX, e.clientY);
+        }
+      });
 
       let initialPinchDist = 0;
-      container.addEventListener("touchstart", e => {
+      let lastTouchX = 0, lastTouchY = 0;
+      domEl.addEventListener("touchstart", e => {
         if (e.touches.length === 1) {
           isDragging = true;
           prevX = e.touches[0].clientX;
           prevY = e.touches[0].clientY;
+          lastTouchX = prevX; lastTouchY = prevY;
           dragDistance = 0;
         } else if (e.touches.length === 2) {
           isDragging = false;
@@ -556,30 +619,36 @@
         }
       }, { passive: true });
 
-      container.addEventListener("touchmove", e => {
+      domEl.addEventListener("touchmove", e => {
         if (e.touches.length === 1 && isDragging) {
           const dx = e.touches[0].clientX - prevX;
           const dy = e.touches[0].clientY - prevY;
           dragDistance += Math.abs(dx) + Math.abs(dy);
-          camYaw += dx * 0.36;
-          camPitch += dy * 0.36;
+          camLon -= dx * 0.34;
+          camLat += dy * 0.34;
           prevX = e.touches[0].clientX;
           prevY = e.touches[0].clientY;
-          updateAngles();
+          lastTouchX = prevX; lastTouchY = prevY;
         } else if (e.touches.length === 2) {
           const dist = Math.hypot(
             e.touches[0].clientX - e.touches[1].clientX,
             e.touches[0].clientY - e.touches[1].clientY
           );
           const diff = initialPinchDist - dist;
-          if (Math.abs(diff) > 8) {
-            adjustZoom(diff * 0.12);
+          if (Math.abs(diff) > 6) {
+            adjustZoom(diff * 0.14);
             initialPinchDist = dist;
           }
         }
       }, { passive: true });
 
-      container.addEventListener("touchend", () => { isDragging = false; });
+      domEl.addEventListener("touchend", e => {
+        if (isDragging && e.touches.length === 0) {
+          isDragging = false;
+          handleTap(lastTouchX, lastTouchY);
+        }
+      });
+
       window.addEventListener("wheel", e => {
         if (document.querySelector(".fixed.z-40:not(.hidden), .fixed.z-50:not(.hidden)")) return;
         adjustZoom(e.deltaY > 0 ? 4 : -4);
@@ -587,47 +656,18 @@
     }
 
     function adjustZoom(deltaFov) {
-      currentFov = Math.min(105, Math.max(28, currentFov + deltaFov));
-      document.getElementById("main-camera").setAttribute("fov", currentFov);
+      targetFov = Math.min(102, Math.max(26, targetFov + deltaFov));
     }
 
     function resetCameraView() {
-      currentFov = 80; camYaw = 0; camPitch = 0;
-      document.getElementById("main-camera").setAttribute("fov", 80);
-      document.getElementById("camera-yaw").setAttribute("rotation", "0 0 0");
-      document.getElementById("camera-pitch").setAttribute("rotation", "0 0 0");
+      camLon = 0; camLat = 0; targetFov = 75;
+      camera.fov = 75;
+      camera.updateProjectionMatrix();
     }
 
-    // ==================== טעינת תמונות מהירה וחסינת-CORS ====================
-    function createFallbackPanorama(type) {
-      const c = document.createElement("canvas");
-      c.width = 2048; c.height = 1024;
-      const ctx = c.getContext("2d");
-      const g = ctx.createLinearGradient(0, 0, 0, 1024);
-      if (type === "lobby") {
-        g.addColorStop(0, "#0284c7");
-        g.addColorStop(0.45, "#e0f2fe");
-        g.addColorStop(0.7, "#fef9c3");
-        g.addColorStop(1, "#cbd5e1");
-      } else {
-        g.addColorStop(0, "#dbeafe");
-        g.addColorStop(0.5, "#f8fafc");
-        g.addColorStop(1, "#e2e8f0");
-      }
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 2048, 1024);
-      ctx.strokeStyle = type === "lobby" ? "rgba(255,255,255,0.35)" : "rgba(14,165,233,0.12)";
-      ctx.lineWidth = 3;
-      for (let x = 0; x < 2048; x += 128) {
-        ctx.beginPath(); ctx.arc(x + 64, 540, 170, Math.PI, 0); ctx.stroke();
-      }
-      const img = new Image();
-      img.src = c.toDataURL("image/jpeg", 0.88);
-      return img;
+    function escapeHtml(str) {
+      return String(str || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
     }
-
-    const fallbackGalleryImg = createFallbackPanorama("gallery");
-    const fallbackLobbyImg = createFallbackPanorama("lobby");
 
     function loadImageSafe(url) {
       if (!url) return Promise.resolve(null);
@@ -659,31 +699,6 @@
       return promise;
     }
 
-    function applyTextureToEntity(el, img, flipX = false) {
-      if (!el || !img) return;
-      const tex = new THREE.Texture(img);
-      applyColorSpace(tex);
-      if (flipX) {
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.repeat.x = -1;
-        tex.offset.x = 1;
-      }
-      tex.needsUpdate = true;
-
-      const apply = () => {
-        const mesh = el.getObject3D("mesh");
-        if (mesh) {
-          if (mesh.material && mesh.material.map) mesh.material.map.dispose();
-          mesh.material.map = tex;
-          mesh.material.color.setHex(0xffffff);
-          mesh.material.needsUpdate = true;
-        }
-      };
-      if (el.getObject3D("mesh")) apply();
-      else el.addEventListener("object3dset", apply, { once: true });
-    }
-
-    // ==================== תקשורת מול Google Apps Script ====================
     async function apiPost(payload) {
       if (currentAuthCode) payload.authCode = currentAuthCode;
       const res = await fetch(API_URL, {
@@ -695,7 +710,7 @@
       return await res.json();
     }
 
-    async function refreshData() {
+    async function refreshData(shouldRenderAdmin = false) {
       try {
         const res = await fetch(API_URL, { method: "GET", redirect: "follow" });
         const data = await res.json();
@@ -703,7 +718,10 @@
           museumData = data;
           renderZonesNav();
 
-          // קישור פיזיטלי ישיר מתוך שלט QR במסדרון (?exhibit=...)
+          const warnEl = document.getElementById("api-version-warning");
+          if (data.apiVersion !== EXPECTED_API_VERSION) warnEl.classList.remove("hidden");
+          else warnEl.classList.add("hidden");
+
           if (pendingDeepLinkExhibit) {
             const target = museumData.exhibits.find(e => e.id === pendingDeepLinkExhibit && e.status === "approved");
             pendingDeepLinkExhibit = null;
@@ -717,13 +735,14 @@
 
           if (currentView === "lobby") enterLobby(true);
           else if (currentView !== "exhibit") enterZone(currentView, true);
-          if (currentUser) {
-            const activeTab = document.querySelector(".admin-tab.text-indigo-600");
-            renderAdminContent(activeTab ? activeTab.dataset.tab : "pending");
+
+          const hsOpen = !document.getElementById("hotspot-editor-modal").classList.contains("hidden");
+          if (shouldRenderAdmin && currentUser && !hsOpen) {
+            renderAdminContent(currentAdminTab);
           }
         }
       } catch (e) {
-        console.warn("Refresh:", e);
+        console.warn("Refresh error:", e);
       } finally {
         document.getElementById("loader").classList.add("hidden");
       }
@@ -736,8 +755,8 @@
       setTimeout(() => {
         resetCameraView();
         callback();
-        setTimeout(() => container.classList.remove("scene-portal-dive"), 90);
-      }, 340);
+        setTimeout(() => container.classList.remove("scene-portal-dive"), 80);
+      }, 330);
     }
 
     function toggleMainMenu() {
@@ -769,7 +788,7 @@
       }
     }
 
-    // ==================== 1. חדר הכניסה הראשי (לובי 360 + שערי פתיחה) ====================
+    // ==================== 1. חדר הכניסה הראשי + שערי פתיחה תלת-ממדיים ====================
     function enterLobby(skipAnim = false) {
       const render = () => {
         currentView = "lobby";
@@ -777,72 +796,102 @@
         renderZonesNav();
         document.getElementById("inside-exhibit-hud").classList.add("hidden");
         document.getElementById("active-hotspot-box").classList.add("hidden");
-        document.getElementById("museum-floor").setAttribute("visible", "true");
+        floorMesh.visible = true;
         document.getElementById("current-location-badge").innerText = "חדר הכניסה הראשי";
         showRoomWelcome(museumData.settings ? museumData.settings.lobbyWelcome : "");
 
-        const sky = document.getElementById("museum-sky");
-        const customLobby = museumData.settings && museumData.settings.lobbyImage;
-        const lobbyUrl = customLobby || "lobby-360.jpg";
+        setSkyFromCanvas(fallbackLobbyCanvas);
 
-        applyTextureToEntity(sky, fallbackLobbyImg);
-        loadImageSafe(lobbyUrl).then(img => {
-          if (img && currentView === "lobby") applyTextureToEntity(sky, img);
+        const customLobby = museumData.settings && museumData.settings.lobbyImage;
+        const primaryUrl = customLobby || "lobby-360.jpg";
+        loadImageSafe(primaryUrl).then(img => {
+          if (img && currentView === "lobby") setSkyFromImage(img);
+          else if (customLobby) {
+            loadImageSafe("lobby-360.jpg").then(img2 => {
+              if (img2 && currentView === "lobby") setSkyFromImage(img2);
+            });
+          }
         });
 
-        const container = document.getElementById("room-objects");
-        container.innerHTML = "";
+        clearRoomObjects();
 
         const activeZones = museumData.zones.filter(z => z.status === "approved");
         const radius = 6.8;
+
         activeZones.forEach((zone, idx) => {
-          const angle = ((idx - (activeZones.length - 1) / 2) * 0.62) - Math.PI / 2;
-          const x = Math.cos(angle) * radius;
-          const z = Math.sin(angle) * radius;
-          const rotY = (-angle * 180 / Math.PI) - 90;
-          const color = zone.themeColor || "#0ea5e9";
+          const angle = ((idx - (activeZones.length - 1) / 2) * 0.58);
+          const x = Math.sin(angle) * radius;
+          const z = -Math.cos(angle) * radius;
+          const colorHex = zone.themeColor || "#0ea5e9";
+          const colorNum = new THREE.Color(colorHex);
           const count = museumData.exhibits.filter(e => e.zoneId === zone.id && e.status === "approved").length;
 
-          const portal = document.createElement("a-entity");
-          portal.setAttribute("position", `${x} 1.65 ${z}`);
-          portal.setAttribute("rotation", `0 ${rotY} 0`);
-          portal.classList.add("clickable");
+          const gateGroup = new THREE.Group();
+          gateGroup.position.set(x, -0.35, z);
+          gateGroup.lookAt(0, -0.35, 0);
 
-          portal.onclick = () => {
-            if (dragDistance > 14) return;
-            const leftDoor = portal.querySelector(".door-left");
-            const rightDoor = portal.querySelector(".door-right");
-            if (leftDoor && rightDoor) {
-              leftDoor.setAttribute("animation", "property: rotation; to: 0 -105 0; dur: 520; easing: easeOutCubic");
-              rightDoor.setAttribute("animation", "property: rotation; to: 0 105 0; dur: 520; easing: easeOutCubic");
-            }
-            setTimeout(() => enterZone(zone.id), 400);
+          const pillarMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+          const accentMat = new THREE.MeshBasicMaterial({ color: colorNum });
+          const glowMat = new THREE.MeshBasicMaterial({ color: colorNum, transparent: true, opacity: 0.42, side: THREE.DoubleSide });
+          const doorMat = new THREE.MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.94 });
+
+          const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.3, 0.28), pillarMat);
+          leftPillar.position.set(-1.18, 0, 0);
+          const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.3, 0.28), pillarMat);
+          rightPillar.position.set(1.18, 0, 0);
+          const topBeam = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.24, 0.34), accentMat);
+          topBeam.position.set(0, 1.72, 0);
+          const portalGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.14, 3.15), glowMat);
+          portalGlow.position.set(0, 0, -0.06);
+
+          const leftPivot = new THREE.Group();
+          leftPivot.position.set(-1.07, 0, 0.04);
+          const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(1.04, 3.1, 0.07), doorMat);
+          leftDoor.position.set(0.52, 0, 0);
+          const leftHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.09), accentMat);
+          leftHandle.position.set(0.92, 0, 0.03);
+          leftPivot.add(leftDoor, leftHandle);
+
+          const rightPivot = new THREE.Group();
+          rightPivot.position.set(1.07, 0, 0.04);
+          const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(1.04, 3.1, 0.07), doorMat);
+          rightDoor.position.set(-0.52, 0, 0);
+          const rightHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.09), accentMat);
+          rightHandle.position.set(-0.92, 0, 0.03);
+          rightPivot.add(rightDoor, rightHandle);
+
+          const signTex = makeHebrewSignTexture(zone.name, `🚪 לחץ לפתיחת השער (${count} יצירות)`, "#0f172a", colorHex, "#ffffff");
+          const signMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.9, 0.82),
+            new THREE.MeshBasicMaterial({ map: signTex, transparent: true, side: THREE.DoubleSide })
+          );
+          signMesh.position.set(0, 2.32, 0.08);
+
+          gateGroup.add(leftPillar, rightPillar, topBeam, portalGlow, leftPivot, rightPivot, signMesh);
+          roomGroup.add(gateGroup);
+
+          const doorAnim = { leftPivot, rightPivot, opening: false, progress: 0 };
+          animatedDoors.push(doorAnim);
+
+          const onGateClick = () => {
+            if (doorAnim.opening) return;
+            doorAnim.opening = true;
+            targetFov = 46;
+            setTimeout(() => enterZone(zone.id), 460);
           };
 
-          portal.innerHTML = `
-            <a-box position="-1.16 0 0" width="0.18" height="3.1" depth="0.25" color="#1e293b" class="clickable"></a-box>
-            <a-box position="1.16 0 0" width="0.18" height="3.1" depth="0.25" color="#1e293b" class="clickable"></a-box>
-            <a-box position="0 1.6 0" width="2.52" height="0.22" depth="0.28" color="${color}" class="clickable"></a-box>
-            <a-plane position="0 0 -0.05" width="2.1" height="2.95" color="${color}" opacity="0.35" class="clickable"></a-plane>
-            <a-entity class="door-left" position="-1.06 0 0.02">
-              <a-box position="0.52 0 0" width="1.02" height="2.9" depth="0.06" color="#0f172a" opacity="0.93" class="clickable"></a-box>
-              <a-box position="0.92 0 0.04" width="0.05" height="0.48" depth="0.04" color="${color}"></a-box>
-            </a-entity>
-            <a-entity class="door-right" position="1.06 0 0.02">
-              <a-box position="-0.52 0 0" width="1.02" height="2.9" depth="0.06" color="#0f172a" opacity="0.93" class="clickable"></a-box>
-              <a-box position="-0.92 0 0.04" width="0.05" height="0.48" depth="0.04" color="${color}"></a-box>
-            </a-entity>
-            <a-plane position="0 2.15 0.06" width="2.8" height="0.78" class="clickable"
-              hebrew-sign="title: ${zone.name.replace(/;/g, '')}; subtitle: 🚪 לחץ לפתיחת השער (${count} יצירות); bg: #0f172a; accent: ${color}"></a-plane>
-          `;
-          container.appendChild(portal);
+          [leftDoor, rightDoor, portalGlow, signMesh, topBeam].forEach(m => {
+            m.userData.onClick = onGateClick;
+            clickableObjects.push(m);
+          });
         });
       };
+
       if (skipAnim) render();
       else transitionScene(render);
     }
 
-    // ==================== 2. אולם תצוגה (אזור) ====================
+    // ==================== 2. אולם גלריה (אזור) ====================
     function enterZone(zoneId, skipAnim = false) {
       const zone = museumData.zones.find(z => z.id === zoneId);
       if (!zone) return enterLobby(skipAnim);
@@ -854,70 +903,89 @@
         renderZonesNav();
         document.getElementById("inside-exhibit-hud").classList.add("hidden");
         document.getElementById("active-hotspot-box").classList.add("hidden");
-        document.getElementById("museum-floor").setAttribute("visible", "true");
+        floorMesh.visible = true;
         document.getElementById("current-location-badge").innerText = zone.name;
-        applyTextureToEntity(document.getElementById("museum-sky"), fallbackGalleryImg);
         showRoomWelcome(zone.welcomeText || "");
+        setSkyFromCanvas(fallbackGalleryCanvas);
+        clearRoomObjects();
 
-        const container = document.getElementById("room-objects");
-        container.innerHTML = "";
-        const radius = 7.4;
+        const radius = 7.2;
 
-        // שער חזרה מעוצב ללובי
-        const backGate = document.createElement("a-entity");
-        backGate.setAttribute("position", `0 1.7 ${radius}`);
-        backGate.setAttribute("rotation", "0 180 0");
-        backGate.classList.add("clickable");
-        backGate.onclick = () => { if (dragDistance <= 14) enterLobby(); };
-        backGate.innerHTML = `
-          <a-plane width="2.8" height="0.85" class="clickable"
-            hebrew-sign="title: 🏛️ חזרה לחדר הכניסה; bg: #0f172a; accent: #38bdf8"></a-plane>
-        `;
-        container.appendChild(backGate);
+        const backTex = makeHebrewSignTexture("🏛️ חזרה לחדר הכניסה", "", "#0f172a", "#38bdf8", "#ffffff");
+        const backMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.0, 0.78),
+          new THREE.MeshBasicMaterial({ map: backTex, transparent: true, side: THREE.DoubleSide })
+        );
+        backMesh.position.set(0, 0.2, radius);
+        backMesh.lookAt(0, 0.2, 0);
+        backMesh.userData.onClick = () => enterLobby();
+        roomGroup.add(backMesh);
+        clickableObjects.push(backMesh);
 
         const zoneExhibits = museumData.exhibits.filter(e => e.zoneId === zoneId && e.status === "approved");
         if (zoneExhibits.length === 0) {
-          const emptySign = document.createElement("a-entity");
-          emptySign.setAttribute("position", "0 2 -5.5");
-          emptySign.innerHTML = `<a-plane width="4.4" height="1.1" hebrew-sign="title: האגף מוכן ליצירות הראשונות!; subtitle: העלו תוצרים דרך התפריט ☰; bg: #ffffff; textColor: #0f172a; accent: #0ea5e9"></a-plane>`;
-          container.appendChild(emptySign);
+          const emptyTex = makeHebrewSignTexture("האגף מוכן ליצירות הראשונות!", "העלו תוצרים דרך התפריט ☰", "#ffffff", "#0ea5e9", "#0f172a");
+          const emptyMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(4.6, 1.25),
+            new THREE.MeshBasicMaterial({ map: emptyTex, transparent: true, side: THREE.DoubleSide })
+          );
+          emptyMesh.position.set(0, 0.2, -5.8);
+          roomGroup.add(emptyMesh);
           return;
         }
 
+        const accentColor = new THREE.Color(zone.themeColor || "#0ea5e9");
         zoneExhibits.forEach((ex, idx) => {
-          const angle = ((idx / zoneExhibits.length) * Math.PI * 1.55) - (Math.PI * 1.28);
-          const x = Math.cos(angle) * radius;
-          const z = Math.sin(angle) * radius;
-          const rotY = (-angle * 180 / Math.PI) - 90;
+          const span = Math.min(Math.PI * 1.45, Math.max(0.65, (zoneExhibits.length - 1) * 0.52));
+          const angle = zoneExhibits.length === 1 ? 0 : (-span / 2) + (idx / (zoneExhibits.length - 1)) * span;
+          const x = Math.sin(angle) * radius;
+          const z = -Math.cos(angle) * radius;
           const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
 
-          const frame = document.createElement("a-entity");
-          frame.setAttribute("position", `${x} 2.15 ${z}`);
-          frame.setAttribute("rotation", `0 ${rotY} 0`);
-          frame.classList.add("clickable");
-          frame.onclick = () => { if (dragDistance <= 14) enterExhibit360(ex.id); };
+          const frameGroup = new THREE.Group();
+          frameGroup.position.set(x, 0.25, z);
+          frameGroup.lookAt(0, 0.25, 0);
 
-          frame.innerHTML = `
-            <a-box width="3.15" height="2.35" depth="0.12" color="#ffffff" class="clickable"></a-box>
-            <a-box width="3.26" height="2.46" depth="0.08" position="0 0 -0.03" color="${zone.themeColor || '#0ea5e9'}"></a-box>
-            <a-plane class="exhibit-canvas clickable" width="2.9" height="2.1" position="0 0 0.08" color="#e2e8f0"></a-plane>
-            <a-plane width="3.15" height="0.82" position="0 -1.65 0.04" class="clickable"
-              hebrew-sign="title: ${ex.title.replace(/;/g, '')}; subtitle: ${ex.studentName.replace(/;/g, '')} (${ex.studentClass.replace(/;/g, '')}) • 📍 ${hsCount} נקודות; bg: #0f172a; accent: #38bdf8"></a-plane>
-          `;
-          container.appendChild(frame);
+          const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(3.26, 2.46, 0.1), new THREE.MeshBasicMaterial({ color: accentColor }));
+          const innerFrame = new THREE.Mesh(new THREE.BoxGeometry(3.12, 2.32, 0.12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+          const imgPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.88, 2.08), new THREE.MeshBasicMaterial({ color: 0xe2e8f0 }));
+          imgPlane.position.z = 0.08;
 
-          // טעינה אסינכרונית חסינת CORS למסגרת התמונה (ללא מסך שחור!)
-          const planeEl = frame.querySelector(".exhibit-canvas");
+          const plaqueTex = makeHebrewSignTexture(ex.title, `${ex.studentName} (${ex.studentClass}) • 📍 ${hsCount} נקודות`, "#0f172a", "#38bdf8", "#ffffff");
+          const plaqueMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.2, 0.85),
+            new THREE.MeshBasicMaterial({ map: plaqueTex, transparent: true, side: THREE.DoubleSide })
+          );
+          plaqueMesh.position.set(0, -1.72, 0.06);
+
+          frameGroup.add(outerFrame, innerFrame, imgPlane, plaqueMesh);
+          roomGroup.add(frameGroup);
+
+          const onExhibitClick = () => enterExhibit360(ex.id);
+          [imgPlane, plaqueMesh, innerFrame].forEach(m => {
+            m.userData.onClick = onExhibitClick;
+            clickableObjects.push(m);
+          });
+
           loadImageSafe(ex.imageUrl).then(img => {
-            if (img && currentView === zoneId) applyTextureToEntity(planeEl, img);
+            if (img && currentView === zoneId) {
+              const tex = new THREE.Texture(img);
+              tex.encoding = THREE.sRGBEncoding;
+              tex.minFilter = THREE.LinearFilter;
+              tex.needsUpdate = true;
+              imgPlane.material.map = tex;
+              imgPlane.material.color.setHex(0xffffff);
+              imgPlane.material.needsUpdate = true;
+            }
           });
         });
       };
+
       if (skipAnim) render();
       else transitionScene(render);
     }
 
-    // ==================== 3. כניסה לתוך יצירה (360° מלא או מסך קעור IMAX חכם) ====================
+    // ==================== 3. כניסה לתוך יצירה (IMAX קעור או 360° מלא) ====================
     function enterExhibit360(exhibitId, skipAnim = false) {
       const ex = museumData.exhibits.find(e => e.id === exhibitId);
       if (!ex) return;
@@ -925,13 +993,14 @@
       const render = () => {
         currentView = "exhibit";
         activeExhibit = ex;
-        exhibitViewMode = "auto";
         document.getElementById("current-location-badge").innerText = `🌐 ${ex.title} • ${ex.studentName}`;
         document.getElementById("inside-exhibit-hud").classList.remove("hidden");
         document.getElementById("active-hotspot-box").classList.add("hidden");
         document.getElementById("room-welcome-banner").classList.add("hidden");
-        document.getElementById("museum-floor").setAttribute("visible", "false");
+        floorMesh.visible = false;
         updateReactionsUI(ex);
+        clearRoomObjects();
+        setSkyFromCanvas(fallbackGalleryCanvas);
 
         loadImageSafe(ex.imageUrl).then(img => {
           if (!img || currentView !== "exhibit" || activeExhibit.id !== ex.id) return;
@@ -954,66 +1023,69 @@
     }
 
     function renderExhibitSpace(img) {
-      const container = document.getElementById("room-objects");
-      container.innerHTML = "";
-      const sky = document.getElementById("museum-sky");
+      clearRoomObjects();
       const toggleBtn = document.getElementById("toggle-mode-btn");
       const hotspots = JSON.parse(activeExhibit.hotspotsJson || "[]");
 
       if (exhibitViewMode === "sphere") {
-        // מצב כיפת 360° מלאה
         toggleBtn.innerText = "🎬 מסך קעור";
-        applyTextureToEntity(sky, img);
+        setSkyFromImage(img);
 
         const radius = 8;
         hotspots.forEach((hs, idx) => {
           const lon = ((hs.x / 100) - 0.5) * Math.PI * 2;
           const lat = (0.5 - (hs.y / 100)) * Math.PI;
           const x = radius * Math.cos(lat) * Math.sin(lon);
-          const y = 1.6 + radius * Math.sin(lat);
+          const y = radius * Math.sin(lat);
           const z = -radius * Math.cos(lat) * Math.cos(lon);
-          const rotY = -lon * (180 / Math.PI);
-          spawnHotspotPin(container, x, y, z, rotY, idx, hs.title);
+          spawnHotspotPin(x, y, z, idx, hs.title);
         });
       } else {
-        // מצב מסך קעור אימרסיבי (IMAX) — 0 עיוותים ו-100% דיוק במיקום הנקודות החמות!
         toggleBtn.innerText = "🌐 כיפת 360°";
-        applyTextureToEntity(sky, fallbackGalleryImg);
+        setSkyFromCanvas(fallbackGalleryCanvas);
 
         const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
         const R = 6.2;
-        const thetaLength = Math.min(Math.PI * 0.88, Math.max(Math.PI * 0.45, aspect * 0.72));
+        const thetaLength = Math.min(Math.PI * 0.9, Math.max(Math.PI * 0.48, aspect * 0.74));
         const arcWidth = R * thetaLength;
-        const H = Math.min(6.4, Math.max(3.2, arcWidth / aspect));
+        const H = Math.min(6.4, Math.max(3.4, arcWidth / aspect));
+        const thetaStart = Math.PI - thetaLength / 2;
 
-        const screenEl = document.createElement("a-entity");
-        screenEl.setAttribute("position", "0 1.6 0");
-        screenEl.setAttribute("curved-exhibit", `radius: ${R}; height: ${H}; thetaLength: ${thetaLength}`);
-        container.appendChild(screenEl);
-        setTimeout(() => applyTextureToEntity(screenEl, img, true), 40);
+        const geo = new THREE.CylinderGeometry(R, R, H, 56, 1, true, thetaStart, thetaLength);
+        const tex = new THREE.Texture(img);
+        tex.encoding = THREE.sRGBEncoding;
+        tex.minFilter = THREE.LinearFilter;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.repeat.x = -1;
+        tex.offset.x = 1;
+        tex.needsUpdate = true;
 
-        const pinR = R - 0.28;
+        const screenMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide }));
+        roomGroup.add(screenMesh);
+
+        const pinR = R - 0.25;
         hotspots.forEach((hs, idx) => {
           const lon = ((hs.x / 100) - 0.5) * thetaLength;
           const x = pinR * Math.sin(lon);
           const z = -pinR * Math.cos(lon);
-          const y = 1.6 + (0.5 - (hs.y / 100)) * H;
-          const rotY = -lon * (180 / Math.PI);
-          spawnHotspotPin(container, x, y, z, rotY, idx, hs.title);
+          const y = (0.5 - (hs.y / 100)) * H;
+          spawnHotspotPin(x, y, z, idx, hs.title);
         });
       }
     }
 
-    function spawnHotspotPin(container, x, y, z, rotY, idx, title) {
-      const pin = document.createElement("a-plane");
-      pin.setAttribute("position", `${x} ${y} ${z}`);
-      pin.setAttribute("rotation", `0 ${rotY} 0`);
-      pin.setAttribute("width", "1.45");
-      pin.setAttribute("height", "0.68");
-      pin.setAttribute("hotspot-pin", `num: ${idx + 1}; label: ${(title || ("נקודה " + (idx + 1))).replace(/;/g, "")}`);
-      pin.classList.add("clickable");
-      pin.onclick = () => { if (dragDistance <= 14) showHotspotIn360(idx); };
-      container.appendChild(pin);
+    function spawnHotspotPin(x, y, z, idx, title) {
+      const tex = makeHotspotPinTexture(idx + 1, title);
+      const pinMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.45, 0.70),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
+      );
+      pinMesh.position.set(x, y, z);
+      pinMesh.lookAt(0, 0, 0);
+      pinMesh.userData.onClick = () => showHotspotIn360(idx);
+      roomGroup.add(pinMesh);
+      clickableObjects.push(pinMesh);
+      pulsingPins.push(pinMesh);
     }
 
     function exitExhibitToZone() {
@@ -1021,7 +1093,7 @@
       else enterLobby();
     }
 
-    // ==================== 4. הצגת נקודה חמה + שמע אוניברסלי + הקראה ====================
+    // ==================== 4. נקודה חמה + שמע אוניברסלי + הקראה ====================
     async function showHotspotIn360(idx) {
       if (!activeExhibit) return;
       const hs = JSON.parse(activeExhibit.hotspotsJson || "[]")[idx];
@@ -1081,14 +1153,11 @@
       if (!("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "he-IL";
-      u.rate = 0.95;
+      u.lang = "he-IL"; u.rate = 0.95;
       window.speechSynthesis.speak(u);
     }
     function speakCurrentHotspot() {
-      const t = document.getElementById("hs-detail-title").innerText;
-      const b = document.getElementById("hs-detail-text").innerText;
-      speakText(`${t}. ${b}`);
+      speakText(`${document.getElementById("hs-detail-title").innerText}. ${document.getElementById("hs-detail-text").innerText}`);
     }
     function stopSpeech() {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -1103,7 +1172,7 @@
       openModal("exhibit-info-modal");
     }
 
-    // ==================== 5. מדבקות פרגון מבוקרות ====================
+    // ==================== 5. מדבקות פרגון ====================
     function updateReactionsUI(ex) {
       let counts = { learned: 0, creative: 0, bravo: 0 };
       try { counts = Object.assign(counts, JSON.parse(ex.reactionsJson || "{}")); } catch (e) {}
@@ -1127,7 +1196,7 @@
       }
     }
 
-    // ==================== 6. העלאת תוצר תלמיד (אימות קוד בשרת) ====================
+    // ==================== 6. העלאת תוצר תלמיד ====================
     function requestStudentUpload() {
       document.getElementById("upload-pin-input").value = "";
       openModal("upload-gate-modal");
@@ -1137,12 +1206,17 @@
       const pin = document.getElementById("upload-pin-input").value.trim();
       const btn = document.getElementById("verify-pin-btn");
       btn.disabled = true; btn.innerText = "בודק...";
-      const res = await apiPost({ action: "verify_upload_pin", pin });
-      btn.disabled = false; btn.innerText = "המשך להעלאה";
-      if (!res || !res.success) return alert("❌ קוד שגוי! נסו שוב.");
-      verifiedUploadPin = pin;
-      closeModal("upload-gate-modal");
-      openModal("upload-modal");
+      try {
+        const res = await apiPost({ action: "verify_upload_pin", pin });
+        if (!res || !res.success) return alert("❌ קוד שגוי! נסו שוב.");
+        verifiedUploadPin = pin;
+        closeModal("upload-gate-modal");
+        openModal("upload-modal");
+      } catch (e) {
+        alert("שגיאת תקשורת מול השרת.");
+      } finally {
+        btn.disabled = false; btn.innerText = "המשך להעלאה";
+      }
     }
 
     function submitStudentWork(e) {
@@ -1156,64 +1230,79 @@
       reader.onload = ev => {
         const img = new Image();
         img.onload = async () => {
-          const canvas = document.createElement("canvas");
-          const MAX_DIM = 1400;
-          let w = img.width, h = img.height;
-          if (w > MAX_DIM || h > MAX_DIM) {
-            if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
-            else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+          try {
+            const canvas = document.createElement("canvas");
+            const MAX_DIM = 1400;
+            let w = img.width, h = img.height;
+            if (w > MAX_DIM || h > MAX_DIM) {
+              if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+              else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+            }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            const compressedData = canvas.toDataURL("image/jpeg", 0.82);
+
+            const res = await apiPost({
+              action: "upload_exhibit",
+              pin: verifiedUploadPin,
+              studentName: document.getElementById("up-name").value.trim(),
+              studentClass: document.getElementById("up-class").value.trim(),
+              title: document.getElementById("up-title").value.trim(),
+              preferredZoneId: document.getElementById("up-zone").value,
+              summary: document.getElementById("up-summary").value.trim(),
+              imageData: compressedData
+            });
+
+            if (!res || !res.success) return alert("שגיאה בשליחה: " + (res && (res.message || res.error) ? (res.message || res.error) : "נסה שוב"));
+            alert("🎉 היצירה נשלחה בהצלחה וממתינה לאישור מנהלי המוזיאון!");
+            document.getElementById("upload-form").reset();
+            closeModal("upload-modal");
+            refreshData(false);
+          } catch (err) {
+            alert("שגיאה בהעלאת התמונה: " + err.message);
+          } finally {
+            btn.disabled = false; btn.innerText = "🚀 שלח לאישור מנהלי המוזיאון";
           }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          const compressedData = canvas.toDataURL("image/jpeg", 0.82);
-
-          const res = await apiPost({
-            action: "upload_exhibit",
-            pin: verifiedUploadPin,
-            studentName: document.getElementById("up-name").value.trim(),
-            studentClass: document.getElementById("up-class").value.trim(),
-            title: document.getElementById("up-title").value.trim(),
-            preferredZoneId: document.getElementById("up-zone").value,
-            summary: document.getElementById("up-summary").value.trim(),
-            imageData: compressedData
-          });
-
-          btn.disabled = false; btn.innerText = "🚀 שלח לאישור מנהלי המוזיאון";
-          if (!res || !res.success) return alert("שגיאה בשליחה: " + (res && res.message ? res.message : ""));
-          alert("🎉 היצירה נשלחה בהצלחה וממתינה לאישור מנהלי המוזיאון!");
-          document.getElementById("upload-form").reset();
-          closeModal("upload-modal");
-          refreshData();
         };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    // ==================== 7. ניהול מוזיאון + החלפת לובי + שלט QR להדפסה ====================
+    // ==================== 7. ניהול מוזיאון (ללא קפיצת לשוניות!) ====================
     function handleAdminClick() {
-      if (currentUser) openModal("admin-modal");
-      else openModal("login-modal");
+      if (currentUser) {
+        openModal("admin-modal");
+        switchAdminTab(currentAdminTab);
+      } else {
+        openModal("login-modal");
+      }
     }
 
     async function performLogin() {
       const code = document.getElementById("login-code-input").value.trim();
       const btn = document.getElementById("login-submit-btn");
       btn.disabled = true; btn.innerText = "מאמת...";
-      const res = await apiPost({ action: "login", code });
-      btn.disabled = false; btn.innerText = "כניסה למערכת";
-      if (!res || !res.success) return alert("❌ קוד גישה שגוי");
+      try {
+        const res = await apiPost({ action: "login", code });
+        if (!res || !res.success) return alert("❌ קוד גישה שגוי");
 
-      currentUser = res.user;
-      currentAuthCode = code;
-      document.getElementById("login-code-input").value = "";
-      closeModal("login-modal");
-      document.getElementById("admin-btn-text").innerText = currentUser.name;
-      document.getElementById("admin-role-label").innerText = `מחובר: ${currentUser.name} (${translateRole(currentUser.role)})`;
-      if (currentUser.role === "super_admin") document.getElementById("tab-staff-btn").classList.remove("hidden");
-      else document.getElementById("tab-staff-btn").classList.add("hidden");
-      openModal("admin-modal");
-      switchAdminTab("pending");
+        currentUser = res.user;
+        currentAuthCode = code;
+        currentAdminTab = "pending";
+        document.getElementById("login-code-input").value = "";
+        closeModal("login-modal");
+        document.getElementById("admin-btn-text").innerText = currentUser.name;
+        document.getElementById("admin-role-label").innerText = `מחובר: ${currentUser.name} (${translateRole(currentUser.role)})`;
+        if (currentUser.role === "super_admin") document.getElementById("tab-staff-btn").classList.remove("hidden");
+        else document.getElementById("tab-staff-btn").classList.add("hidden");
+        openModal("admin-modal");
+        switchAdminTab("pending");
+      } catch (e) {
+        alert("שגיאה בחיבור לשרת");
+      } finally {
+        btn.disabled = false; btn.innerText = "כניסה למערכת";
+      }
     }
 
     function logoutAdmin() {
@@ -1230,6 +1319,7 @@
     }
 
     function switchAdminTab(tab) {
+      currentAdminTab = tab;
       document.querySelectorAll(".admin-tab").forEach(b => {
         b.classList.remove("bg-white", "text-indigo-600", "border-t", "border-x", "border-slate-200");
         b.classList.add("text-slate-500");
@@ -1256,7 +1346,7 @@
         pending.forEach(ex => {
           html += `
             <div class="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center bg-slate-50">
-              <img src="${ex.imageUrl}" class="w-24 h-24 object-cover rounded-xl shadow">
+              <img src="${ex.imageUrl}" class="w-24 h-24 object-cover rounded-xl shadow bg-slate-200">
               <div class="flex-1">
                 <h4 class="font-bold text-slate-800">${escapeHtml(ex.title)} <span class="text-xs text-slate-500">(${escapeHtml(ex.studentName)} - ${escapeHtml(ex.studentClass)})</span></h4>
                 <p class="text-xs text-slate-600 mt-1">${escapeHtml(ex.summary)}</p>
@@ -1294,7 +1384,7 @@
           approved.map(ex => `
             <div class="border border-slate-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src="${ex.imageUrl}" class="w-14 h-14 rounded-xl object-cover">
+                <img src="${ex.imageUrl}" class="w-14 h-14 rounded-xl object-cover bg-slate-200">
                 <div>
                   <div class="font-bold text-sm">${escapeHtml(ex.title)}</div>
                   <div class="text-xs text-slate-500">${escapeHtml(ex.studentName)} (${escapeHtml(ex.studentClass)})</div>
@@ -1356,13 +1446,16 @@
         box.innerHTML = `
           <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-200 space-y-3">
             <h4 class="font-bold text-sm text-indigo-900">🖼️ החלפת תמונת 360 של חדר הכניסה הראשי</h4>
-            <p class="text-xs text-indigo-700">העלה תמונת פנורמה (יחס מועדף 2:1) — התמונה תידחס חכמה ותתעדכן מיד אצל כל המבקרים:</p>
+            <p class="text-xs text-indigo-700">בחר תמונת פנורמה (יחס מועדף 2:1) — היא תישמר בדרייב ותתעדכן מיד ברקע הכניסה:</p>
             <div class="flex flex-wrap items-center gap-2">
               <input type="file" id="lobby-pano-upload" accept="image/*" class="text-xs bg-white p-2 rounded-xl border flex-1">
               <button onclick="uploadNewLobbyPano(this)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">החלף תמונת כניסה</button>
-              <button onclick="resetLobbyPano()" class="bg-white border text-slate-600 text-xs font-bold px-3 py-2.5 rounded-xl">איפוס לברירת מחדל</button>
+              <button onclick="resetLobbyPano()" class="bg-white border text-slate-600 text-xs font-bold px-3 py-2.5 rounded-xl">איפוס</button>
             </div>
-            <div class="text-[11px] text-indigo-600">תמונה פעילה כעת: <span dir="ltr">${escapeHtml(currentLobby)}</span></div>
+            <div class="flex items-center gap-3 pt-1">
+              <img id="lobby-preview-thumb" src="${currentLobby}" onerror="this.style.display='none'" class="w-28 h-14 object-cover rounded-xl border bg-white">
+              <div class="text-[11px] text-indigo-700">תצוגה מקדימה של תמונת הלובי הפעילה</div>
+            </div>
           </div>
 
           <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200">
@@ -1409,17 +1502,25 @@
       reader.onload = ev => {
         const img = new Image();
         img.onload = async () => {
-          const canvas = document.createElement("canvas");
-          const MAX_W = 2048;
-          let w = img.width, h = img.height;
-          if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          await apiPost({ action: "update_settings", key: "lobbyImage", value: dataUrl });
-          btn.disabled = false; btn.innerText = "החלף תמונת כניסה";
-          alert("🎉 תמונת חדר הכניסה הוחלפה בהצלחה!");
-          refreshData();
+          try {
+            const canvas = document.createElement("canvas");
+            const MAX_W = 1920;
+            let w = img.width, h = img.height;
+            if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+
+            const res = await apiPost({ action: "update_settings", key: "lobbyImage", value: dataUrl });
+            if (!res || !res.success) return alert("שגיאה בשמירת תמונת הלובי: " + (res && res.message ? res.message : ""));
+            if (res.value) imageCache[res.value] = img;
+            alert("🎉 תמונת חדר הכניסה הוחלפה בהצלחה!");
+            refreshData(true);
+          } catch (e) {
+            alert("שגיאה בהעלאת התמונה: " + e.message);
+          } finally {
+            btn.disabled = false; btn.innerText = "החלף תמונת כניסה";
+          }
         };
         img.src = ev.target.result;
       };
@@ -1429,53 +1530,55 @@
     async function resetLobbyPano() {
       await apiPost({ action: "update_settings", key: "lobbyImage", value: "" });
       alert("תמונת הכניסה אופסה לברירת המחדל.");
-      refreshData();
+      refreshData(true);
     }
 
     async function saveLobbyWelcome() {
       await apiPost({ action: "update_settings", key: "lobbyWelcome", value: document.getElementById("lobby-welcome-input").value });
       alert("✅ כיתוב חדר הכניסה עודכן!");
-      refreshData();
+      refreshData(true);
     }
     async function approveExhibit(id) {
       const zoneId = document.getElementById(`assign-zone-${id}`).value;
-      await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId });
-      refreshData();
+      const res = await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId });
+      if (!res || !res.success) return alert("שגיאה באישור המוצג: " + (res && res.message ? res.message : ""));
+      refreshData(true);
     }
     async function requestDeleteExhibit(id) {
       await apiPost({ action: "manage_exhibit", subAction: "request_delete", id });
       if (currentUser.role === "student_manager") alert("בקשת המחיקה נשלחה לאישור מורה / מנהל על.");
-      refreshData();
+      refreshData(true);
     }
     async function confirmDeleteExhibit(id) {
       await apiPost({ action: "manage_exhibit", subAction: "approve_delete", id });
-      refreshData();
+      refreshData(true);
     }
     async function restoreExhibit(id) {
       await apiPost({ action: "manage_exhibit", subAction: "restore", id });
-      refreshData();
+      refreshData(true);
     }
     async function createNewZone() {
       const name = document.getElementById("new-zone-name").value.trim();
       const welcomeText = document.getElementById("new-zone-welcome").value.trim();
       const themeColor = document.getElementById("new-zone-color").value;
-      if (!name) return;
-      await apiPost({ action: "manage_zone", subAction: "create", name, welcomeText, themeColor });
-      refreshData();
+      if (!name) return alert("נא להזין שם לאגף");
+      const res = await apiPost({ action: "manage_zone", subAction: "create", name, welcomeText, themeColor });
+      if (!res || !res.success) return alert("שגיאה בהקמת החדר: " + (res && res.message ? res.message : ""));
+      refreshData(true);
     }
     async function updateZoneText(id) {
       const welcomeText = document.getElementById(`zone-text-${id}`).value;
       await apiPost({ action: "manage_zone", subAction: "update_text", id, welcomeText });
       alert("✅ כיתוב החדר עודכן!");
-      refreshData();
+      refreshData(true);
     }
     async function requestZoneDelete(id) {
       await apiPost({ action: "manage_zone", subAction: "request_delete", id });
-      refreshData();
+      refreshData(true);
     }
     async function approveZoneDelete(id) {
       await apiPost({ action: "manage_zone", subAction: "approve_delete", id });
-      refreshData();
+      refreshData(true);
     }
     async function addStaffMember() {
       const name = document.getElementById("staff-name").value.trim();
@@ -1483,22 +1586,31 @@
       const accessCode = document.getElementById("staff-code").value.trim();
       if (!name || !accessCode) return;
       await apiPost({ action: "manage_staff", subAction: "add", name, role, accessCode });
-      refreshData();
+      refreshData(true);
     }
     async function removeStaffMember(id) {
       await apiPost({ action: "manage_staff", subAction: "remove", id });
-      refreshData();
+      refreshData(true);
     }
 
-    // ==================== 8. עורך נקודות חמות + קידוד WAV אוניברסלי (עובד גם באייפון!) ====================
+    // ==================== 8. עורך נקודות חמות + הקלטת קול WAV קלה ואוניברסלית ====================
     function openHotspotEditor(exhibitId) {
       const ex = museumData.exhibits.find(e => e.id === exhibitId);
       if (!ex) return;
       editingExhibitId = exhibitId;
+      uploadingAudioCount = 0;
       draftHotspots = JSON.parse(ex.hotspotsJson || "[]");
       document.getElementById("editor-img").src = ex.imageUrl;
       renderEditorHotspots();
       openModal("hotspot-editor-modal");
+    }
+
+    function closeHotspotEditor() {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        clearInterval(recTimerInterval);
+        mediaRecorder.stop();
+      }
+      closeModal("hotspot-editor-modal");
     }
 
     function addHotspotAtClick(event) {
@@ -1519,33 +1631,34 @@
 
       const list = document.getElementById("editor-hotspots-list");
       list.innerHTML = draftHotspots.map((hs, idx) => {
-        const hasAudio = !!(hs.audioFileId || hs.audioUrl);
+        const fid = hs.audioFileId || (hs.audioUrl && (hs.audioUrl.match(/[-\w]{25,}/) || [])[0]);
+        const localPreview = fid && audioCache[fid] ? `<audio controls src="${audioCache[fid]}" class="w-full h-8 mt-1"></audio>` : "";
         return `
         <div class="border border-slate-200 rounded-2xl p-3 bg-slate-50 space-y-2">
           <div class="flex justify-between items-center">
             <span class="font-bold text-xs text-indigo-700">📍 נקודה #${idx + 1}</span>
             <button onclick="draftHotspots.splice(${idx}, 1); renderEditorHotspots();" class="text-rose-500 text-xs font-bold">הסר</button>
           </div>
-          <input type="text" value="${escapeHtml(hs.title)}" onchange="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
-          <textarea rows="2" onchange="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">${escapeHtml(hs.text)}</textarea>
-          <input type="url" value="${escapeHtml(hs.link || '')}" onchange="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
+          <input type="text" value="${escapeHtml(hs.title)}" oninput="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
+          <textarea rows="2" oninput="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">${escapeHtml(hs.text)}</textarea>
+          <input type="url" value="${escapeHtml(hs.link || '')}" oninput="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" onclick="toggleRecordAudio(${idx}, this)" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">
-              🎙️ ${hasAudio ? 'הקלט מחדש' : 'הקלט הסבר קולי (עד 45 שנ׳)'}
+              🎙️ ${fid ? 'הקלט מחדש' : 'הקלט הסבר קולי (עד 30 שנ׳)'}
             </button>
-            ${hasAudio ? '<span class="text-xs text-emerald-600 font-bold">✅ נשמר בדרייב</span>' : ''}
+            ${fid ? '<span class="text-xs text-emerald-600 font-bold">✅ נשמר בדרייב</span>' : ''}
           </div>
+          ${localPreview}
         </div>`;
       }).join("");
     }
 
-    // ממיר כל הקלטה ל-WAV 12kHz מונו קל (מתנגן חלק ב-100% באייפון, אנדרואיד ומחשב)
     async function blobToUniversalWavBase64(blob) {
       const arrayBuffer = await blob.arrayBuffer();
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
       const decoded = await ctx.decodeAudioData(arrayBuffer);
-      const targetRate = 12000;
+      const targetRate = 8000;
       const ratio = decoded.sampleRate / targetRate;
       const ch0 = decoded.getChannelData(0);
       const newLen = Math.floor(ch0.length / ratio);
@@ -1576,7 +1689,6 @@
       }
       ctx.close();
 
-      // קידוד Base64 בטוח בחלקים (מונע קריסת זיכרון)
       const bytes = new Uint8Array(buffer);
       let binary = "";
       const chunk = 8192;
@@ -1591,7 +1703,7 @@
         clearInterval(recTimerInterval);
         mediaRecorder.stop();
         btn.disabled = true;
-        btn.innerText = "⏳ ממיר ושומר בדרייב...";
+        btn.innerText = "⏳ מעלה הקלטה...";
         return;
       }
       try {
@@ -1603,6 +1715,11 @@
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = async () => {
           stream.getTracks().forEach(t => t.stop());
+          uploadingAudioCount++;
+          const saveBtn = document.getElementById("save-hs-btn");
+          saveBtn.disabled = true;
+          saveBtn.innerText = "⏳ ממתין לסיום העלאת ההקלטה...";
+
           const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
           try {
             let audioDataUrl;
@@ -1618,24 +1735,30 @@
               delete draftHotspots[idx].audioUrl;
               audioCache[res.fileId] = audioDataUrl;
             } else {
-              alert("שגיאה בשמירת ההקלטה בדרייב");
+              alert("שגיאה בשמירת ההקלטה: " + (res && (res.message || res.error) ? (res.message || res.error) : "ודא ש-Code.gs נפרס לגרסה חדשה"));
             }
           } catch (err) {
-            alert("שגיאת רשת בהעלאת השמע");
+            alert("שגיאת רשת בהעלאת ההקלטה: " + err.message);
+          } finally {
+            uploadingAudioCount = Math.max(0, uploadingAudioCount - 1);
+            if (uploadingAudioCount === 0) {
+              saveBtn.disabled = false;
+              saveBtn.innerText = "💾 שמור נקודות חמות למוזיאון";
+            }
+            renderEditorHotspots();
           }
-          renderEditorHotspots();
         };
 
-        mediaRecorder.start();
+        mediaRecorder.start(250);
         btn.innerText = "⏹️ עצור (0 שנ׳)";
         recTimerInterval = setInterval(() => {
           recSeconds++;
           btn.innerText = `⏹️ עצור (${recSeconds} שנ׳)`;
-          if (recSeconds >= 45 && mediaRecorder.state === "recording") {
+          if (recSeconds >= 30 && mediaRecorder.state === "recording") {
             clearInterval(recTimerInterval);
             mediaRecorder.stop();
             btn.disabled = true;
-            btn.innerText = "⏳ ממיר ושומר בדרייב...";
+            btn.innerText = "⏳ מעלה הקלטה...";
           }
         }, 1000);
       } catch (err) {
@@ -1644,6 +1767,7 @@
     }
 
     async function saveHotspotsToServer() {
+      if (uploadingAudioCount > 0) return alert("המתן לסיום העלאת ההקלטה לפני השמירה.");
       const btn = document.getElementById("save-hs-btn");
       btn.disabled = true; btn.innerText = "⏳ שומר...";
       try {
@@ -1655,9 +1779,9 @@
         });
         if (res && res.success) {
           closeModal("hotspot-editor-modal");
-          refreshData();
+          refreshData(true);
         } else {
-          alert("השמירה נכשלה: " + (res.message || res.error || "שגיאה"));
+          alert("השמירה נכשלה: " + (res && (res.message || res.error) ? (res.message || res.error) : "ודא ש-Code.gs נפרס לגרסה חדשה"));
         }
       } catch (err) {
         alert("שגיאה בשמירת הנקודות החמות: " + err.message);
@@ -1675,6 +1799,19 @@
 
     function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
     function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initThreeEngine();
+      setTimeout(() => {
+        const loader = document.getElementById("loader");
+        if (loader && !loader.classList.contains("hidden")) {
+          loader.classList.add("hidden");
+          renderZonesNav();
+          enterLobby(true);
+        }
+      }, 900);
+      refreshData(false);
+    });
   </script>
 </body>
 </html>
