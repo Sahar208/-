@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>המוזיאון הפיזיטלי 360</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #f8fafc; user-select: none; }
+    #scene-container { position: fixed; inset: 0; z-index: 1; }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+    }
+    .pulse-ring { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(14, 165, 233, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  </style>
+</head>
+<body class="text-slate-800">
+
+  <div id="setup-overlay" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl text-right">
+      <div class="text-3xl mb-2">🔌</div>
+      <h2 class="text-2xl font-black text-slate-800">חיבור המוזיאון ל-Google Drive</h2>
+      <p class="text-sm text-slate-600 mt-1 mb-4">הדבק כאן פעם אחת את כתובת ה-Web App של Google Apps Script (מסתיימת ב-<code>/exec</code>):</p>
+      <input type="url" id="api-url-input" dir="ltr" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm mb-3">
+      <button onclick="saveApiUrl()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl shadow">שמור והיכנס למוזיאון 360</button>
+    </div>
+  </div>
+
+  <div id="loader" class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50">
+    <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <h2 class="text-2xl font-black text-slate-800">פותח את שערי המוזיאון הפיזיטלי...</h2>
+    <p class="text-slate-500 mt-1">טוען את חלל ה-360 ואת היצירות מהדרייב</p>
+  </div>
+
+  <header class="fixed top-4 inset-x-4 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3 pointer-events-auto">
+      <button onclick="enterLobby()" class="flex items-center gap-2 font-black text-lg text-sky-700 hover:text-sky-500 transition">
+        <span>🏛️</span>
+        <span>מוזיאון 360</span>
+      </button>
+      <span class="text-slate-300">|</span>
+      <span id="current-location-badge" class="text-sm font-bold bg-sky-100 text-sky-800 px-3 py-1 rounded-full">חדר הכניסה הראשי</span>
+    </div>
+
+    <div id="zones-nav" class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto max-w-md pointer-events-auto"></div>
+
+    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto">
+      <button onclick="openModal('upload-modal')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-sm shadow transition flex items-center gap-1.5">
+        <span>➕</span> <span>העלאת תוצר</span>
+      </button>
+      <button onclick="openQrModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold p-2 rounded-xl text-sm transition" title="הצג ברקוד כניסה">
+        📱 QR
+      </button>
+      <button id="admin-btn" onclick="handleAdminClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm shadow transition flex items-center gap-1.5">
+        <span>🔑</span> <span id="admin-btn-text">ניהול מוזיאון</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 glass-panel px-5 py-2 rounded-full text-xs md:text-sm font-medium text-slate-600 flex items-center gap-3 pointer-events-none">
+    <span>🖱️ גרור עם העכבר / הזז את הטלפון כדי להסתובב 360°</span>
+    <span>•</span>
+    <span>👆 לחץ על יצירה או שער כדי לחקור</span>
+  </div>
+
+  <div id="scene-container">
+    <a-scene id="vr-scene" vr-mode-ui="enabled: false" cursor="rayOrigin: mouse" raycaster="objects: .clickable">
+      <a-assets id="scene-assets">
+        <img id="lobby-pano" crossorigin="anonymous">
+        <img id="gallery-pano" crossorigin="anonymous">
+      </a-assets>
+
+      <a-entity id="rig" position="0 1.6 0">
+        <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false"></a-camera>
+      </a-entity>
+
+      <a-sky id="museum-sky" src="#lobby-pano" radius="50" rotation="0 -90 0"></a-sky>
+      <a-circle position="0 0 0" rotation="-90 0 0" radius="14" color="#f1f5f9" opacity="0.22"></a-circle>
+      <a-entity id="room-objects"></a-entity>
+    </a-scene>
+  </div>
+
+  <!-- מודאל 1: צפייה במוצג + נקודות חמות -->
+  <div id="exhibit-viewer-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
+      <div class="relative bg-slate-100 md:w-3/5 flex items-center justify-center p-4 overflow-hidden">
+        <div id="hotspot-image-wrapper" class="relative inline-block max-w-full max-h-[75vh]">
+          <img id="viewer-img" src="" class="max-h-[72vh] w-auto rounded-2xl shadow-lg object-contain">
+          <div id="viewer-hotspots-layer" class="absolute inset-0"></div>
+        </div>
+      </div>
+
+      <div class="md:w-2/5 p-6 flex flex-col justify-between overflow-y-auto">
+        <div>
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <span id="viewer-class" class="text-xs font-bold bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full"></span>
+              <h2 id="viewer-title" class="text-2xl font-black text-slate-800 mt-2"></h2>
+              <p id="viewer-student" class="text-sm font-medium text-slate-500 mt-0.5"></p>
+            </div>
+            <button onclick="closeModal('exhibit-viewer-modal')" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-full font-bold text-slate-600">✕</button>
+          </div>
+
+          <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <h4 class="text-xs font-bold text-slate-400 mb-1">תקציר הלמידה:</h4>
+            <p id="viewer-summary" class="text-slate-700 text-sm leading-relaxed"></p>
+          </div>
+
+          <div id="active-hotspot-box" class="mt-4 hidden bg-amber-50 border border-amber-200 p-4 rounded-2xl transition-all">
+            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm mb-1">
+              <span>📍</span> <span id="hs-detail-title">הסבר מתוך התמונה</span>
+            </div>
+            <p id="hs-detail-text" class="text-slate-700 text-sm leading-relaxed"></p>
+            <div id="hs-detail-audio" class="mt-3 hidden"></div>
+            <a id="hs-detail-link" href="#" target="_blank" class="mt-3 hidden inline-flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600">
+              🔗 פתח קישור להרחבה
+            </a>
+          </div>
+          <p class="mt-4 text-xs text-slate-400 text-center">💡 לחצו על הנקודות המהבהבות על גבי התמונה כדי לגלות הסברים!</p>
+        </div>
+
+        <button onclick="closeModal('exhibit-viewer-modal')" class="mt-6 w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl">
+          חזרה לסיור ב-360
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- מודאל 2: העלאת תוצר ע"י תלמיד -->
+  <div id="upload-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-black text-slate-800">🎨 הוספת יצירה למוזיאון</h2>
+        <button onclick="closeModal('upload-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+      </div>
+      <form id="upload-form" onsubmit="submitStudentWork(event)" class="space-y-3.5">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">שם התלמיד/ה *</label>
+            <input type="text" id="up-name" required placeholder="למשל: נועה לוי" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">כיתה *</label>
+            <input type="text" id="up-class" required placeholder="למשל: ה'2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">נושא / כותרת היצירה *</label>
+          <input type="text" id="up-title" required placeholder="מה רואים בתמונה?" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">באיזה אזור תרצו להציג? (אופציונלי)</label>
+          <select id="up-zone" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">תקציר והסבר על מה שלמדתי *</label>
+          <textarea id="up-summary" rows="3" required placeholder="ספרו בקצרה מה חקרתם ומה גיליתם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">בחירת תמונה (כל גודל - המערכת תתאים אוטומטית) *</label>
+          <input type="file" id="up-file" accept="image/*" required class="w-full text-sm text-slate-500 file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700">
+        </div>
+
+        <button type="submit" id="up-submit-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition">
+          🚀 שלח לאישור מנהלי המוזיאון
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- מודאל 3: התחברות ולוח ניהול -->
+  <div id="login-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+      <h2 class="text-xl font-black text-slate-800 mb-1">🔐 כניסת צוות ומנהלי מוזיאון</h2>
+      <p class="text-xs text-slate-500 mb-4">הזינו את קוד הגישה האישי שקיבלתם</p>
+      <input type="password" id="login-code-input" placeholder="הקלידו קוד..." class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2.5 mb-3">
+      <button onclick="performLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl">כניסה למערכת</button>
+      <button onclick="closeModal('login-modal')" class="mt-2 text-xs text-slate-400 hover:underline">ביטול</button>
+    </div>
+  </div>
+
+  <div id="admin-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-5 bg-indigo-600 text-white flex justify-between items-center">
+        <div>
+          <h2 class="text-xl font-black">🏛️ חדר הבקרה של המוזיאון</h2>
+          <p id="admin-role-label" class="text-xs text-indigo-200"></p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="logoutAdmin()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
+          <button onclick="closeModal('admin-modal')" class="bg-white/20 hover:bg-white/30 w-8 h-8 rounded-full font-bold">✕</button>
+        </div>
+      </div>
+
+      <div class="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2 text-sm font-bold overflow-x-auto">
+        <button onclick="switchAdminTab('pending')" class="admin-tab px-4 py-2 rounded-t-xl bg-white text-indigo-600 border-t border-x border-slate-200 whitespace-nowrap" data-tab="pending">⏳ ממתינים לאישור</button>
+        <button onclick="switchAdminTab('approved')" class="admin-tab px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="approved">🖼️ מוצגים ונקודות חמות</button>
+        <button onclick="switchAdminTab('zones')" class="admin-tab px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="zones">🗺️ ניהול אזורים</button>
+        <button id="tab-staff-btn" onclick="switchAdminTab('staff')" class="admin-tab hidden px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="staff">👑 מינוי מנהלים ומורים</button>
+      </div>
+
+      <div id="admin-content" class="p-6 overflow-y-auto flex-1 space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- מודאל 4: עורך נקודות חמות -->
+  <div id="hotspot-editor-modal" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
+      <div class="md:w-3/5 bg-slate-100 p-4 flex flex-col items-center justify-center">
+        <p class="text-xs font-bold text-indigo-600 mb-2">👆 לחצו בכל מקום על התמונה כדי להוסיף נקודה חמה חדשה</p>
+        <div class="relative inline-block cursor-crosshair" onclick="addHotspotAtClick(event)">
+          <img id="editor-img" src="" class="max-h-[65vh] w-auto rounded-2xl shadow">
+          <div id="editor-hotspots-layer" class="absolute inset-0 pointer-events-none"></div>
+        </div>
+      </div>
+
+      <div class="md:w-2/5 p-5 flex flex-col justify-between overflow-y-auto">
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-black text-lg text-slate-800">📍 עורך נקודות חמות</h3>
+            <button onclick="closeModal('hotspot-editor-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+          </div>
+          <div id="editor-hotspots-list" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
+        </div>
+
+        <button onclick="saveHotspotsToServer()" id="save-hs-btn" class="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow">
+          💾 שמור נקודות חמות למוזיאון
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- מודאל 5: מחולל ברקוד QR -->
+  <div id="qr-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+      <h3 class="text-xl font-black text-slate-800 mb-1">📱 כניסה מהירה למוזיאון</h3>
+      <p class="text-xs text-slate-500 mb-4">סרקו עם מצלמת הטלפון או הטאבלט</p>
+      <div id="qrcode-box" class="flex justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-4"></div>
+      <button onclick="closeModal('qr-modal')" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl">סגור</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
+
+    let API_URL = DEFAULT_API_URL || localStorage.getItem("MUSEUM_API_URL") || "";
+    let museumData = { zones: [], exhibits: [], staff: [] };
+    let currentUser = null;
+    let currentView = "lobby";
+    let editingExhibitId = null;
+    let draftHotspots = [];
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    window.onload = () => {
+      initPanoramas();
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("api")) {
+        API_URL = urlParams.get("api");
+        localStorage.setItem("MUSEUM_API_URL", API_URL);
+      }
+
+      if (!API_URL) {
+        document.getElementById("loader").classList.add("hidden");
+        document.getElementById("setup-overlay").classList.remove("hidden");
+      } else {
+        refreshData();
+      }
+    };
+
+    function saveApiUrl() {
+      const val = document.getElementById("api-url-input").value.trim();
+      if (!val.startsWith("https://script.google.com/")) return alert("נא להזין כתובת תקינה של Google Apps Script");
+      API_URL = val;
+      localStorage.setItem("MUSEUM_API_URL", API_URL);
+      document.getElementById("setup-overlay").classList.add("hidden");
+      document.getElementById("loader").classList.remove("hidden");
+      refreshData();
+    }
+
+    async function apiPost(payload) {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    async function refreshData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        museumData = data;
+        renderZonesNav();
+        if (currentView === "lobby") enterLobby();
+        else enterZone(currentView);
+        document.getElementById("loader").classList.add("hidden");
+        if (currentUser) renderAdminContent("pending");
+      } catch (e) {
+        alert("שגיאה בטעינת הנתונים מ-Google Drive. בדוק את כתובת ה-API.");
+      }
+    }
+
+    function initPanoramas() {
+      const lobbyImg = document.getElementById("lobby-pano");
+      const testImg = new Image();
+      testImg.onload = () => { lobbyImg.src = "lobby-360.jpg"; };
+      testImg.onerror = () => {
+        const c1 = document.createElement("canvas");
+        c1.width = 2048; c1.height = 1024;
+        const ctx1 = c1.getContext("2d");
+        const grad1 = ctx1.createLinearGradient(0, 0, 0, 1024);
+        grad1.addColorStop(0, "#0f172a");
+        grad1.addColorStop(0.35, "#0284c7");
+        grad1.addColorStop(0.55, "#e0f2fe");
+        grad1.addColorStop(0.75, "#fef3c7");
+        grad1.addColorStop(1, "#cbd5e1");
+        ctx1.fillStyle = grad1;
+        ctx1.fillRect(0, 0, 2048, 1024);
+        ctx1.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx1.lineWidth = 3;
+        for (let x = 0; x < 2048; x += 128) {
+          ctx1.beginPath(); ctx1.arc(x + 64, 520, 180, Math.PI, 0); ctx1.stroke();
+          ctx1.fillStyle = "rgba(255,255,255,0.08)"; ctx1.fillRect(x + 56, 520, 16, 400);
+        }
+        lobbyImg.src = c1.toDataURL("image/jpeg", 0.9);
+      };
+      testImg.src = "lobby-360.jpg";
+
+      const c2 = document.createElement("canvas");
+      c2.width = 2048; c2.height = 1024;
+      const ctx2 = c2.getContext("2d");
+      const grad2 = ctx2.createLinearGradient(0, 0, 0, 1024);
+      grad2.addColorStop(0, "#e0f2fe");
+      grad2.addColorStop(0.5, "#f8fafc");
+      grad2.addColorStop(1, "#e2e8f0");
+      ctx2.fillStyle = grad2;
+      ctx2.fillRect(0, 0, 2048, 1024);
+      ctx2.strokeStyle = "rgba(14, 165, 233, 0.14)";
+      ctx2.lineWidth = 2;
+      for (let x = 0; x < 2048; x += 64) {
+        ctx2.beginPath(); ctx2.moveTo(x, 0); ctx2.lineTo(x, 1024); ctx2.stroke();
+      }
+      document.getElementById("gallery-pano").src = c2.toDataURL("image/jpeg", 0.9);
+    }
+
+    function renderZonesNav() {
+      const nav = document.getElementById("zones-nav");
+      const activeZones = museumData.zones.filter(z => z.status === "approved");
+      nav.innerHTML = `<button onclick="enterLobby()" class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap ${currentView === 'lobby' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">🏛️ לובי ראשי</button>` +
+        activeZones.map(z => `
+          <button onclick="enterZone('${z.id}')" class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${currentView === z.id ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+            ${z.name}
+          </button>
+        `).join("");
+
+      const select = document.getElementById("up-zone");
+      select.innerHTML = `<option value="">תנו למנהלי המוזיאון לבחור עבורי</option>` +
+        activeZones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
+    }
+
+    function enterLobby() {
+      currentView = "lobby";
+      renderZonesNav();
+      document.getElementById("current-location-badge").innerText = "🏛️ חדר הכניסה הראשי";
+      document.getElementById("museum-sky").setAttribute("src", "#lobby-pano");
+
+      const container = document.getElementById("room-objects");
+      container.innerHTML = "";
+
+      const titleEntity = document.createElement("a-entity");
+      titleEntity.setAttribute("position", "0 3.6 -6");
+      titleEntity.innerHTML = `
+        <a-plane width="5.6" height="1.35" color="#0f172a" opacity="0.82"></a-plane>
+        <a-text value="ברוכים הבאים למוזיאון הפיזיטלי 360" align="center" width="8.5" color="#ffffff" position="0 0.22 0.05"></a-text>
+        <a-text value="הסתובבו במרחב ובחרו שער כניסה לאגפי הלמידה" align="center" width="5.2" color="#38bdf8" position="0 -0.25 0.05"></a-text>
+      `;
+      container.appendChild(titleEntity);
+
+      const activeZones = museumData.zones.filter(z => z.status === "approved");
+      const radius = 6.5;
+      activeZones.forEach((zone, idx) => {
+        const angle = ((idx - (activeZones.length - 1) / 2) * 0.55) - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const rotY = (-angle * 180 / Math.PI) - 90;
+
+        const portal = document.createElement("a-entity");
+        portal.setAttribute("position", `${x} 1.7 ${z}`);
+        portal.setAttribute("rotation", `0 ${rotY} 0`);
+        portal.classList.add("clickable");
+        portal.onclick = () => enterZone(zone.id);
+
+        const count = museumData.exhibits.filter(e => e.zoneId === zone.id && e.status === "approved").length;
+
+        portal.innerHTML = `
+          <a-ring radius-inner="1.05" radius-outer="1.22" color="${zone.themeColor || '#0ea5e9'}" class="clickable"></a-ring>
+          <a-circle radius="1.04" color="#ffffff" opacity="0.93" class="clickable"></a-circle>
+          <a-text value="🚪 כניסה לאגף" align="center" width="3.5" color="#64748b" position="0 0.45 0.05"></a-text>
+          <a-text value="${zone.name}" align="center" width="4.8" color="#0f172a" position="0 0.05 0.05"></a-text>
+          <a-text value="${count} מוצגים בתערוכה" align="center" width="3.2" color="${zone.themeColor || '#0284c7'}" position="0 -0.4 0.05"></a-text>
+        `;
+        container.appendChild(portal);
+      });
+    }
+
+    function enterZone(zoneId) {
+      const zone = museumData.zones.find(z => z.id === zoneId);
+      if (!zone) return enterLobby();
+
+      currentView = zoneId;
+      renderZonesNav();
+      document.getElementById("current-location-badge").innerText = "🖼️ " + zone.name;
+      document.getElementById("museum-sky").setAttribute("src", "#gallery-pano");
+
+      const container = document.getElementById("room-objects");
+      container.innerHTML = "";
+
+      const zoneExhibits = museumData.exhibits.filter(e => e.zoneId === zoneId && e.status === "approved");
+      const radius = 7.5;
+
+      const backGate = document.createElement("a-entity");
+      backGate.setAttribute("position", `0 1.6 ${radius}`);
+      backGate.setAttribute("rotation", "0 180 0");
+      backGate.classList.add("clickable");
+      backGate.onclick = () => enterLobby();
+      backGate.innerHTML = `
+        <a-box width="2.2" height="1.1" depth="0.1" color="#0f172a" class="clickable"></a-box>
+        <a-text value="🏛️ חזרה ללובי הראשי" align="center" width="4.2" color="#ffffff" position="0 0 0.08"></a-text>
+      `;
+      container.appendChild(backGate);
+
+      if (zoneExhibits.length === 0) {
+        const emptySign = document.createElement("a-entity");
+        emptySign.setAttribute("position", "0 2 -5");
+        emptySign.innerHTML = `<a-text value="אגף זה ממתין ליצירות הראשונות שלכם!" align="center" width="6" color="#334155"></a-text>`;
+        container.appendChild(emptySign);
+        return;
+      }
+
+      zoneExhibits.forEach((ex, idx) => {
+        const angle = ((idx / zoneExhibits.length) * Math.PI * 1.6) - (Math.PI * 1.3);
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const rotY = (-angle * 180 / Math.PI) - 90;
+        const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
+
+        const frame = document.createElement("a-entity");
+        frame.setAttribute("position", `${x} 2.1 ${z}`);
+        frame.setAttribute("rotation", `0 ${rotY} 0`);
+        frame.classList.add("clickable");
+        frame.onclick = () => openExhibitViewer(ex.id);
+
+        frame.innerHTML = `
+          <a-box width="3.1" height="2.3" depth="0.12" color="#ffffff" class="clickable"></a-box>
+          <a-box width="3.2" height="2.4" depth="0.08" position="0 0 -0.03" color="${zone.themeColor || '#0ea5e9'}"></a-box>
+          <a-image src="${ex.imageUrl}" width="2.85" height="2.05" position="0 0 0.07" crossorigin="anonymous" class="clickable"></a-image>
+          <a-plane width="3.1" height="0.65" position="0 -1.55 0.02" color="#0f172a" opacity="0.9" class="clickable"></a-plane>
+          <a-text value="${ex.title}" align="center" width="4.5" color="#ffffff" position="0 -1.42 0.05"></a-text>
+          <a-text value="${ex.studentName} (${ex.studentClass}) • 📍 ${hsCount} נקודות חמות" align="center" width="3.4" color="#38bdf8" position="0 -1.7 0.05"></a-text>
+        `;
+        container.appendChild(frame);
+      });
+    }
+
+    function openExhibitViewer(exhibitId) {
+      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+      if (!ex) return;
+
+      document.getElementById("viewer-img").src = ex.imageUrl;
+      document.getElementById("viewer-title").innerText = ex.title;
+      document.getElementById("viewer-student").innerText = `נוצר ע"י: ${ex.studentName}`;
+      document.getElementById("viewer-class").innerText = `כיתה ${ex.studentClass}`;
+      document.getElementById("viewer-summary").innerText = ex.summary;
+      document.getElementById("active-hotspot-box").classList.add("hidden");
+
+      const layer = document.getElementById("viewer-hotspots-layer");
+      const hotspots = JSON.parse(ex.hotspotsJson || "[]");
+      layer.innerHTML = hotspots.map((hs, idx) => `
+        <button onclick="showHotspotDetails(${idx}, '${ex.id}')"
+          style="left: ${hs.x}%; top: ${hs.y}%;"
+          class="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-sky-500 text-white font-black text-xs border-2 border-white shadow-lg pulse-ring flex items-center justify-center hover:scale-125 transition">
+          ${idx + 1}
+        </button>
+      `).join("");
+
+      openModal("exhibit-viewer-modal");
+    }
+
+    function showHotspotDetails(idx, exhibitId) {
+      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+      const hs = JSON.parse(ex.hotspotsJson || "[]")[idx];
+      if (!hs) return;
+
+      document.getElementById("active-hotspot-box").classList.remove("hidden");
+      document.getElementById("hs-detail-title").innerText = hs.title || `נקודה #${idx + 1}`;
+      document.getElementById("hs-detail-text").innerText = hs.text || "";
+
+      const audioDiv = document.getElementById("hs-detail-audio");
+      if (hs.audioUrl) {
+        audioDiv.classList.remove("hidden");
+        audioDiv.innerHTML = `<audio controls autoplay src="${hs.audioUrl}" class="w-full h-9"></audio>`;
+      } else {
+        audioDiv.classList.add("hidden");
+        audioDiv.innerHTML = "";
+      }
+
+      const linkEl = document.getElementById("hs-detail-link");
+      if (hs.link) {
+        linkEl.classList.remove("hidden");
+        linkEl.href = hs.link;
+      } else {
+        linkEl.classList.add("hidden");
+      }
+    }
+
+    function submitStudentWork(e) {
+      e.preventDefault();
+      const file = document.getElementById("up-file").files[0];
+      if (!file) return;
+
+      const btn = document.getElementById("up-submit-btn");
+      btn.disabled = true;
+      btn.innerText = "⏳ מעבד ושומר בדרייב...";
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = async function() {
+          const canvas = document.createElement("canvas");
+          const MAX_DIM = 1400;
+          let w = img.width, h = img.height;
+          if (w > MAX_DIM || h > MAX_DIM) {
+            if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+            else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+          }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          const compressedData = canvas.toDataURL("image/jpeg", 0.82);
+
+          await apiPost({
+            action: "upload_exhibit",
+            studentName: document.getElementById("up-name").value,
+            studentClass: document.getElementById("up-class").value,
+            title: document.getElementById("up-title").value,
+            preferredZoneId: document.getElementById("up-zone").value,
+            summary: document.getElementById("up-summary").value,
+            imageData: compressedData
+          });
+
+          alert("🎉 כל הכבוד! התמונה נשלחה בהצלחה וממתינה לאישור ומיקום של מנהלי המוזיאון.");
+          document.getElementById("upload-form").reset();
+          btn.disabled = false;
+          btn.innerText = "🚀 שלח לאישור מנהלי המוזיאון";
+          closeModal("upload-modal");
+          refreshData();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleAdminClick() {
+      if (currentUser) openModal("admin-modal");
+      else openModal("login-modal");
+    }
+
+    async function performLogin() {
+      const code = document.getElementById("login-code-input").value;
+      const res = await apiPost({ action: "login", code });
+      if (!res.success) return alert("❌ קוד גישה שגוי");
+      currentUser = res.user;
+      document.getElementById("login-code-input").value = "";
+      closeModal("login-modal");
+      document.getElementById("admin-btn-text").innerText = currentUser.name;
+      document.getElementById("admin-role-label").innerText = `מחובר בתור: ${currentUser.name} (${translateRole(currentUser.role)})`;
+      if (currentUser.role === "super_admin") document.getElementById("tab-staff-btn").classList.remove("hidden");
+      else document.getElementById("tab-staff-btn").classList.add("hidden");
+      openModal("admin-modal");
+      switchAdminTab("pending");
+    }
+
+    function logoutAdmin() {
+      currentUser = null;
+      document.getElementById("admin-btn-text").innerText = "ניהול מוזיאון";
+      closeModal("admin-modal");
+    }
+
+    function translateRole(role) {
+      if (role === "super_admin") return "מנהל כללי";
+      if (role === "teacher") return "מורה אחראי/ת";
+      return "תלמיד/ה מנהל/ת מוזיאון";
+    }
+
+    function switchAdminTab(tab) {
+      document.querySelectorAll(".admin-tab").forEach(b => {
+        b.classList.remove("bg-white", "text-indigo-600", "border-t", "border-x", "border-slate-200");
+        b.classList.add("text-slate-500");
+      });
+      const activeBtn = document.querySelector(`.admin-tab[data-tab="${tab}"]`);
+      if (activeBtn) {
+        activeBtn.classList.add("bg-white", "text-indigo-600", "border-t", "border-x", "border-slate-200");
+        activeBtn.classList.remove("text-slate-500");
+      }
+      renderAdminContent(tab);
+    }
+
+    function renderAdminContent(tab) {
+      const box = document.getElementById("admin-content");
+      const isTeacherOrSuper = currentUser.role === "super_admin" || currentUser.role === "teacher";
+      const activeZones = museumData.zones.filter(z => z.status === "approved");
+
+      if (tab === "pending") {
+        const pending = museumData.exhibits.filter(e => e.status === "pending");
+        const delPending = museumData.exhibits.filter(e => e.status === "delete_pending");
+        let html = `<h3 class="font-bold text-slate-700">מוצגים חדשים הממתינים למיקום ואישור (${pending.length})</h3>`;
+        if (pending.length === 0) html += `<p class="text-sm text-slate-400">אין כרגע מוצגים חדשים הממתינים לאישור.</p>`;
+
+        pending.forEach(ex => {
+          html += `
+            <div class="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center bg-slate-50">
+              <img src="${ex.imageUrl}" class="w-28 h-28 object-cover rounded-xl shadow">
+              <div class="flex-1">
+                <h4 class="font-bold text-slate-800">${ex.title} <span class="text-xs text-slate-500">(${ex.studentName} - ${ex.studentClass})</span></h4>
+                <p class="text-xs text-slate-600 mt-1">${ex.summary}</p>
+                <div class="mt-3 flex flex-wrap gap-2 items-center">
+                  <select id="assign-zone-${ex.id}" class="border rounded-lg px-2 py-1.5 text-xs bg-white">
+                    ${activeZones.map(z => `<option value="${z.id}" ${z.id === ex.zoneId ? 'selected' : ''}>${z.name}</option>`).join("")}
+                  </select>
+                  <button onclick="approveExhibit('${ex.id}')" class="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✅ אשר והצב באזור</button>
+                  <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📍 הוסף נקודות חמות</button>
+                  <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">🗑️ מחק</button>
+                </div>
+              </div>
+            </div>`;
+        });
+
+        if (isTeacherOrSuper && delPending.length > 0) {
+          html += `<h3 class="font-bold text-rose-600 mt-6">⚠️ בקשות מחיקה מתלמידים מנהלים (${delPending.length})</h3>`;
+          delPending.forEach(ex => {
+            html += `
+              <div class="border border-rose-200 bg-rose-50 rounded-2xl p-3 flex justify-between items-center">
+                <span class="text-sm font-bold">${ex.title} (${ex.studentName})</span>
+                <div class="flex gap-2">
+                  <button onclick="confirmDeleteExhibit('${ex.id}')" class="bg-rose-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold">אשר מחיקה סופית</button>
+                  <button onclick="restoreExhibit('${ex.id}')" class="bg-white border text-xs px-3 py-1.5 rounded-lg font-bold">שחזר לתצוגה</button>
+                </div>
+              </div>`;
+          });
+        }
+        box.innerHTML = html;
+      }
+
+      if (tab === "approved") {
+        const approved = museumData.exhibits.filter(e => e.status === "approved");
+        box.innerHTML = `<h3 class="font-bold text-slate-700">כל המוצגים הפעילים במוזיאון (${approved.length})</h3>` +
+          approved.map(ex => `
+            <div class="border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <img src="${ex.imageUrl}" class="w-16 h-16 rounded-xl object-cover">
+                <div>
+                  <div class="font-bold text-sm">${ex.title}</div>
+                  <div class="text-xs text-slate-500">${ex.studentName} (${ex.studentClass})</div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-600 text-white text-xs font-bold px-3 py-2 rounded-xl">📍 ערוך נקודות חמות</button>
+                <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl">${isTeacherOrSuper ? '🗑️ מחק' : '🗑️ בקש מחיקה'}</button>
+              </div>
+            </div>
+          `).join("");
+      }
+
+      if (tab === "zones") {
+        box.innerHTML = `
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <h4 class="font-bold text-sm mb-2">➕ הקמת אזור / אגף חדש במוזיאון</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <input type="text" id="new-zone-name" placeholder="שם האזור (למשל: אגף החלל)" class="border rounded-xl px-3 py-2 text-sm">
+              <input type="color" id="new-zone-color" value="#0ea5e9" class="h-10 w-full rounded-xl cursor-pointer">
+              <button onclick="createNewZone()" class="bg-indigo-600 text-white font-bold rounded-xl text-sm py-2">הקם אזור</button>
+            </div>
+          </div>
+          <div class="space-y-2 mt-4">
+            ${museumData.zones.map(z => `
+              <div class="border rounded-xl p-3 flex justify-between items-center ${z.status === 'delete_pending' ? 'bg-rose-50 border-rose-200' : ''}">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded-full" style="background:${z.themeColor}"></span>
+                  <span class="font-bold text-sm">${z.name}</span>
+                  ${z.status === 'delete_pending' ? '<span class="text-xs text-rose-600 font-bold">(ממתין לאישור מחיקה)</span>' : ''}
+                </div>
+                <div class="flex gap-2">
+                  ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="approveZoneDelete('${z.id}')" class="bg-rose-600 text-white text-xs px-3 py-1 rounded-lg">אשר מחיקה</button>` : ''}
+                  <button onclick="requestZoneDelete('${z.id}')" class="text-rose-600 text-xs font-bold px-2 py-1">מחק אזור</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>`;
+      }
+
+      if (tab === "staff" && currentUser.role === "super_admin") {
+        box.innerHTML = `
+          <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+            <h4 class="font-bold text-sm text-amber-900 mb-2">👑 מינוי מורה או תלמיד מנהל מוזיאון</h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input type="text" id="staff-name" placeholder="שם מלא" class="border rounded-xl px-3 py-2 text-sm bg-white">
+              <select id="staff-role" class="border rounded-xl px-3 py-2 text-sm bg-white">
+                <option value="student_manager">תלמיד/ה מנהל/ת מוזיאון</option>
+                <option value="teacher">מורה אחראי/ת</option>
+              </select>
+              <input type="text" id="staff-code" placeholder="קוד כניסה אישי" class="border rounded-xl px-3 py-2 text-sm bg-white">
+              <button onclick="addStaffMember()" class="bg-amber-600 text-white font-bold rounded-xl text-sm py-2">הוסף לצוות</button>
+            </div>
+          </div>
+          <div class="space-y-2 mt-4">
+            ${museumData.staff.map(s => `
+              <div class="border rounded-xl p-3 flex justify-between items-center">
+                <div>
+                  <span class="font-bold text-sm">${s.name}</span>
+                  <span class="text-xs bg-slate-100 px-2 py-0.5 rounded-full mr-2">${translateRole(s.role)}</span>
+                </div>
+                <button onclick="removeStaffMember('${s.id}')" class="text-rose-600 text-xs font-bold">הסר הרשאה</button>
+              </div>
+            `).join("")}
+          </div>`;
+      }
+    }
+
+    async function approveExhibit(id) {
+      const zoneId = document.getElementById(`assign-zone-${id}`).value;
+      await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId, userRole: currentUser.role });
+      refreshData();
+    }
+    async function requestDeleteExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "request_delete", id, userRole: currentUser.role });
+      if (currentUser.role === "student_manager") alert("בקשת המחיקה נשלחה לאישור מורה / מנהל על.");
+      refreshData();
+    }
+    async function confirmDeleteExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "approve_delete", id, userRole: currentUser.role });
+      refreshData();
+    }
+    async function restoreExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "restore", id, userRole: currentUser.role });
+      refreshData();
+    }
+    async function createNewZone() {
+      const name = document.getElementById("new-zone-name").value;
+      const themeColor = document.getElementById("new-zone-color").value;
+      if (!name) return;
+      await apiPost({ action: "manage_zone", subAction: "create", name, themeColor, createdBy: currentUser.name, userRole: currentUser.role });
+      refreshData();
+    }
+    async function requestZoneDelete(id) {
+      await apiPost({ action: "manage_zone", subAction: "request_delete", id, userRole: currentUser.role });
+      refreshData();
+    }
+    async function approveZoneDelete(id) {
+      await apiPost({ action:
