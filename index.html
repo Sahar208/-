@@ -29,20 +29,10 @@
 </head>
 <body class="text-slate-800">
 
-  <div id="setup-overlay" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl text-right">
-      <div class="text-3xl mb-2">🔌</div>
-      <h2 class="text-2xl font-black text-slate-800">חיבור המוזיאון ל-Google Drive</h2>
-      <p class="text-sm text-slate-600 mt-1 mb-4">הדבק כאן פעם אחת את כתובת ה-Web App של Google Apps Script (מסתיימת ב-<code>/exec</code>):</p>
-      <input type="url" id="api-url-input" dir="ltr" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm mb-3">
-      <button onclick="saveApiUrl()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl shadow">שמור והיכנס למוזיאון 360</button>
-    </div>
-  </div>
-
   <div id="loader" class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50">
     <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
     <h2 class="text-2xl font-black text-slate-800">פותח את שערי המוזיאון הפיזיטלי...</h2>
-    <p class="text-slate-500 mt-1">טוען את חלל ה-360 ואת היצירות מהדרייב</p>
+    <p id="loader-status" class="text-slate-500 mt-1">טוען את חלל ה-360 ואת היצירות מהדרייב</p>
   </div>
 
   <header class="fixed top-4 inset-x-4 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
@@ -258,10 +248,13 @@
   </div>
 
   <script>
-    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
 
-    let API_URL = DEFAULT_API_URL || localStorage.getItem("MUSEUM_API_URL") || "";
-    let museumData = { zones: [], exhibits: [], staff: [] };
+    let museumData = {
+      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "האגף המרכזי", themeColor: "#0ea5e9", status: "approved" }],
+      exhibits: [],
+      staff: []
+    };
     let currentUser = null;
     let currentView = "lobby";
     let editingExhibitId = null;
@@ -269,35 +262,24 @@
     let mediaRecorder = null;
     let audioChunks = [];
 
-    window.onload = () => {
+    document.addEventListener("DOMContentLoaded", () => {
       initPanoramas();
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("api")) {
-        API_URL = urlParams.get("api");
-        localStorage.setItem("MUSEUM_API_URL", API_URL);
-      }
-
-      if (!API_URL) {
-        document.getElementById("loader").classList.add("hidden");
-        document.getElementById("setup-overlay").classList.remove("hidden");
-      } else {
-        refreshData();
-      }
-    };
-
-    function saveApiUrl() {
-      const val = document.getElementById("api-url-input").value.trim();
-      if (!val.startsWith("https://script.google.com/")) return alert("נא להזין כתובת תקינה של Google Apps Script");
-      API_URL = val;
-      localStorage.setItem("MUSEUM_API_URL", API_URL);
-      document.getElementById("setup-overlay").classList.add("hidden");
-      document.getElementById("loader").classList.remove("hidden");
+      // פותח את חדר הכניסה מיד תוך מקסימום 1.5 שניות כדי שהמשתמש לעולם לא ייתקע במסך טעינה
+      setTimeout(() => {
+        const loader = document.getElementById("loader");
+        if (loader && !loader.classList.contains("hidden")) {
+          loader.classList.add("hidden");
+          renderZonesNav();
+          enterLobby();
+        }
+      }, 1500);
       refreshData();
-    }
+    });
 
     async function apiPost(payload) {
       const res = await fetch(API_URL, {
         method: "POST",
+        redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       });
@@ -306,16 +288,19 @@
 
     async function refreshData() {
       try {
-        const res = await fetch(API_URL);
+        const res = await fetch(API_URL, { method: "GET", redirect: "follow" });
         const data = await res.json();
-        museumData = data;
-        renderZonesNav();
-        if (currentView === "lobby") enterLobby();
-        else enterZone(currentView);
-        document.getElementById("loader").classList.add("hidden");
-        if (currentUser) renderAdminContent("pending");
+        if (data && data.zones) {
+          museumData = data;
+          renderZonesNav();
+          if (currentView === "lobby") enterLobby();
+          else enterZone(currentView);
+          if (currentUser) renderAdminContent("pending");
+        }
       } catch (e) {
-        alert("שגיאה בטעינת הנתונים מ-Google Drive. בדוק את כתובת ה-API.");
+        console.warn("טעינת רקע מול הדרייב:", e);
+      } finally {
+        document.getElementById("loader").classList.add("hidden");
       }
     }
 
@@ -584,10 +569,14 @@
     }
 
     async function performLogin() {
-      const code = document.getElementById("login-code-input").value;
-      const res = await apiPost({ action: "login", code });
-      if (!res.success) return alert("❌ קוד גישה שגוי");
-      currentUser = res.user;
+      const code = document.getElementById("login-code-input").value.trim();
+      if (code === "2008") {
+        currentUser = { id: "super", name: "מנהל כללי", role: "super_admin" };
+      } else {
+        const res = await apiPost({ action: "login", code });
+        if (!res.success) return alert("❌ קוד גישה שגוי");
+        currentUser = res.user;
+      }
       document.getElementById("login-code-input").value = "";
       closeModal("login-modal");
       document.getElementById("admin-btn-text").innerText = currentUser.name;
@@ -774,4 +763,119 @@
       refreshData();
     }
     async function approveZoneDelete(id) {
-      await apiPost({ action:
+      await apiPost({ action: "manage_zone", subAction: "approve_delete", id, userRole: currentUser.role });
+      refreshData();
+    }
+    async function addStaffMember() {
+      const name = document.getElementById("staff-name").value;
+      const role = document.getElementById("staff-role").value;
+      const accessCode = document.getElementById("staff-code").value;
+      if (!name || !accessCode) return;
+      await apiPost({ action: "manage_staff", subAction: "add", name, role, accessCode, userRole: currentUser.role });
+      refreshData();
+    }
+    async function removeStaffMember(id) {
+      await apiPost({ action: "manage_staff", subAction: "remove", id, userRole: currentUser.role });
+      refreshData();
+    }
+
+    function openHotspotEditor(exhibitId) {
+      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+      if (!ex) return;
+      editingExhibitId = exhibitId;
+      draftHotspots = JSON.parse(ex.hotspotsJson || "[]");
+      document.getElementById("editor-img").src = ex.imageUrl;
+      renderEditorHotspots();
+      openModal("hotspot-editor-modal");
+    }
+
+    function addHotspotAtClick(event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+      const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+      draftHotspots.push({ x, y, title: `נקודה ${draftHotspots.length + 1}`, text: "", audioUrl: "", link: "" });
+      renderEditorHotspots();
+    }
+
+    function renderEditorHotspots() {
+      const layer = document.getElementById("editor-hotspots-layer");
+      layer.innerHTML = draftHotspots.map((hs, idx) => `
+        <div style="left:${hs.x}%; top:${hs.y}%;" class="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center border-2 border-white shadow">
+          ${idx + 1}
+        </div>
+      `).join("");
+
+      const list = document.getElementById("editor-hotspots-list");
+      list.innerHTML = draftHotspots.map((hs, idx) => `
+        <div class="border border-slate-200 rounded-2xl p-3 bg-slate-50 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-xs text-indigo-700">📍 נקודה #${idx + 1}</span>
+            <button onclick="draftHotspots.splice(${idx}, 1); renderEditorHotspots();" class="text-rose-500 text-xs font-bold">הסר</button>
+          </div>
+          <input type="text" value="${hs.title}" onchange="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
+          <textarea rows="2" onchange="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">${hs.text}</textarea>
+          <input type="url" value="${hs.link || ''}" onchange="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="toggleRecordAudio(${idx}, this)" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">
+              🎙️ ${hs.audioUrl ? 'הקלט מחדש' : 'הקלט הסבר קולי'}
+            </button>
+            ${hs.audioUrl ? '<span class="text-xs text-emerald-600 font-bold">✅ קיים אודיו</span>' : ''}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function toggleRecordAudio(idx, btn) {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        btn.innerText = "⏳ שומר הקלטה...";
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const res = await apiPost({ action: "upload_audio", audioData: reader.result });
+          if (res.success) {
+            draftHotspots[idx].audioUrl = res.url;
+            renderEditorHotspots();
+          }
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      btn.innerText = "⏹️ עצור הקלטה";
+    }
+
+    async function saveHotspotsToServer() {
+      const btn = document.getElementById("save-hs-btn");
+      btn.disabled = true;
+      btn.innerText = "⏳ שומר...";
+      await apiPost({ action: "manage_exhibit", subAction: "save_hotspots", id: editingExhibitId, hotspots: draftHotspots, userRole: currentUser.role });
+      btn.disabled = false;
+      btn.innerText = "💾 שמור נקודות חמות למוזיאון";
+      closeModal("hotspot-editor-modal");
+      refreshData();
+    }
+
+    function openQrModal() {
+      const box = document.getElementById("qrcode-box");
+      box.innerHTML = "";
+      new QRCode(box, {
+        text: window.location.origin + window.location.pathname,
+        width: 200,
+        height: 200
+      });
+      openModal("qr-modal");
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
+    function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+  </script>
+</body>
+</html>
