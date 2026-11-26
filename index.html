@@ -3,308 +3,377 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>המוזיאון הפיזיטלי 360</title>
+  <title>המוזיאון הפיזיטלי הקלאסי 360</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #0f172a; user-select: none; }
+    :root {
+      --ivory: #faf7f0;
+      --parchment: #f1eadc;
+      --gold: #b88c46;
+      --gold-light: #e2c285;
+      --burgundy: #4a1c24;
+      --ink: #1e1b18;
+    }
+    body {
+      font-family: 'Heebo', sans-serif;
+      margin: 0;
+      overflow: hidden;
+      background: #1c1917;
+      color: var(--ink);
+      user-select: none;
+    }
+    .font-classic { font-family: 'Frank Ruhl Libre', serif; }
     #scene-container {
       position: fixed; inset: 0; z-index: 1;
       touch-action: none;
       cursor: grab;
-      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s ease, filter 0.38s ease;
     }
     #scene-container:active { cursor: grabbing; }
-    .scene-portal-dive { transform: scale(1.26); opacity: 0.08; filter: blur(6px); }
-    .glass-panel {
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(226, 232, 240, 0.92);
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+
+    #transition-veil {
+      position: fixed; inset: 0; z-index: 45;
+      pointer-events: none;
+      opacity: 0;
+      background: radial-gradient(circle at center, rgba(250, 247, 240, 0.96) 0%, rgba(236, 226, 205, 0.98) 65%, rgba(212, 194, 160, 0.99) 100%);
+      transition: opacity 0.95s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    #transition-veil.active { opacity: 1; pointer-events: auto; }
+
+    .museum-glass {
+      background: rgba(250, 247, 240, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(184, 140, 70, 0.38);
+      box-shadow: 0 12px 32px rgba(28, 25, 23, 0.18);
+    }
+    .gold-border { border: 1px solid rgba(184, 140, 70, 0.45); }
+    .btn-gold {
+      background: linear-gradient(135deg, #c59d5f 0%, #9c7435 100%);
+      color: #ffffff;
+      transition: all 0.25s ease;
+    }
+    .btn-gold:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .btn-burgundy {
+      background: linear-gradient(135deg, #5d232d 0%, #3d161d 100%);
+      color: #faf7f0;
+      transition: all 0.25s ease;
+    }
+    .btn-burgundy:hover { filter: brightness(1.1); }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbb58d; border-radius: 999px; }
 
     @media print {
       body * { visibility: hidden !important; }
       #printable-plaque-area, #printable-plaque-area * { visibility: visible !important; }
       #printable-plaque-area {
         position: fixed !important; inset: 0 !important;
-        margin: auto !important; box-shadow: none !important; border: 3px solid #0f172a !important;
+        margin: auto !important; box-shadow: none !important;
       }
     }
   </style>
 </head>
-<body class="text-slate-800">
+<body>
 
-  <!-- מסך טעינה ראשוני -->
-  <div id="loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50">
-    <div class="w-14 h-14 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-    <h2 class="text-xl font-black text-slate-800">פותח את שערי המוזיאון 360...</h2>
+  <!-- מסך פתיחה קלאסי -->
+  <div id="loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#faf7f0] transition-opacity duration-700">
+    <div class="w-16 h-16 rounded-full border-2 border-[#b88c46]/30 border-t-[#b88c46] animate-spin mb-5"></div>
+    <div class="text-xs tracking-[0.25em] text-[#9c7435] font-bold mb-1">GALLERIA PHYGITALIS</div>
+    <h1 class="font-classic text-3xl md:text-4xl font-black text-[#1e1b18]">המוזיאון הפיזיטלי 360</h1>
+    <p class="text-sm text-[#78716c] mt-2">פותח את שערי האולמות הקלאסיים...</p>
   </div>
+
+  <!-- מסך מעבר קולנועי איטי ומרשים בין אולמות -->
+  <div id="transition-veil">
+    <div class="text-xs tracking-[0.3em] text-[#9c7435] font-bold mb-2">✦ מעבר באולמות המוזיאון ✦</div>
+    <h2 id="veil-title" class="font-classic text-3xl md:text-5xl font-black text-[#1e1b18] text-center px-6">אולם הכניסה הראשי</h2>
+    <div class="w-28 h-0.5 bg-gradient-to-r from-transparent via-[#b88c46] to-transparent my-4"></div>
+    <p id="veil-subtitle" class="text-sm md:text-base text-[#57534e] text-center max-w-md px-6"></p>
+  </div>
+
+  <!-- הודעות טוסט אלגנטיות -->
+  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
 
   <!-- זירת ה-Three.js התלת-ממדית -->
   <div id="scene-container"></div>
 
-  <!-- סרגל עליון מינימליסטי (מותאם במיוחד לטלפון) -->
+  <!-- סרגל עליון מינימליסטי (נפתח בדרישה בלבד) -->
   <header class="fixed top-3 inset-x-3 z-30 flex items-center justify-between gap-2 pointer-events-none">
-    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto max-w-[74vw]">
-      <button onclick="enterLobby()" class="font-black text-base text-sky-700 hover:text-sky-500 shrink-0" title="חזרה לחדר הכניסה">
+    <div class="museum-glass px-3.5 py-2 rounded-2xl flex items-center gap-2.5 pointer-events-auto max-w-[74vw]">
+      <button onclick="enterLobby()" class="text-lg text-[#9c7435] hover:scale-110 transition shrink-0" title="חזרה ללובי הראשי">
         🏛️
       </button>
-      <span id="current-location-badge" class="text-xs md:text-sm font-bold text-slate-800 truncate">חדר הכניסה הראשי</span>
+      <div class="min-w-0">
+        <div id="museum-brand-sub" class="text-[10px] font-bold text-[#9c7435] leading-none">המוזיאון הפיזיטלי</div>
+        <div id="current-location-badge" class="font-classic text-sm md:text-base font-bold text-[#1e1b18] truncate">אולם הכניסה הראשי</div>
+      </div>
     </div>
 
     <div class="relative pointer-events-auto">
-      <button onclick="toggleMainMenu()" class="glass-panel w-11 h-11 rounded-2xl flex items-center justify-center text-xl font-black text-slate-800 hover:bg-white transition shadow-lg" aria-label="תפריט">
+      <button onclick="toggleMainMenu()" class="museum-glass w-11 h-11 rounded-2xl flex items-center justify-center text-xl font-bold text-[#1e1b18] hover:bg-white transition" aria-label="תפריט">
         ☰
       </button>
 
-      <div id="main-dropdown-menu" class="hidden absolute left-0 mt-2 w-64 glass-panel rounded-3xl p-3 space-y-2 shadow-2xl">
-        <div class="text-[11px] font-bold text-slate-400 px-2">ניווט מהיר באגפים</div>
-        <div id="zones-nav-list" class="max-h-44 overflow-y-auto space-y-1"></div>
-        <hr class="border-slate-200">
-        <button onclick="toggleMainMenu(); requestStudentUpload();" class="w-full text-right px-3 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-2">
-          <span>➕</span> <span>העלאת תוצר תלמיד</span>
+      <div id="main-dropdown-menu" class="hidden absolute left-0 mt-2 w-72 museum-glass rounded-3xl p-3.5 space-y-2.5 shadow-2xl">
+        <div class="flex items-center justify-between px-2">
+          <span class="text-[11px] font-bold text-[#9c7435] tracking-wider">אולמות המוזיאון</span>
+          <span class="text-[10px] text-[#78716c]">מעבר מהיר</span>
+        </div>
+        <div id="zones-nav-list" class="max-h-48 overflow-y-auto space-y-1"></div>
+        <div class="h-px bg-[#b88c46]/25"></div>
+        <button onclick="toggleMainMenu(); requestStudentUpload();" class="w-full text-right px-3.5 py-2.5 rounded-xl btn-gold font-bold text-xs flex items-center gap-2 shadow-sm">
+          <span>🎨</span> <span>העלאת יצירת תלמיד</span>
         </button>
-        <button onclick="toggleMainMenu(); openQrModal();" class="w-full text-right px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-2">
-          <span>📱</span> <span>הצג ברקוד (QR) לכניסה</span>
+        <button onclick="toggleMainMenu(); openQrModal();" class="w-full text-right px-3.5 py-2.5 rounded-xl bg-[#f1eadc] hover:bg-[#e7decb] text-[#1e1b18] font-bold text-xs flex items-center gap-2">
+          <span>📱</span> <span>ברקוד (QR) לכניסה למוזיאון</span>
         </button>
-        <button onclick="toggleMainMenu(); handleAdminClick();" class="w-full text-right px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2">
-          <span>🔑</span> <span id="admin-btn-text">ניהול מוזיאון</span>
+        <button onclick="toggleMainMenu(); handleAdminClick();" class="w-full text-right px-3.5 py-2.5 rounded-xl btn-burgundy font-bold text-xs flex items-center gap-2 shadow-sm">
+          <span>🔑</span> <span id="admin-btn-text">לשכת האוצרות והניהול</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- באנר כיתוב מותאם לחדר -->
-  <div id="room-welcome-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-20 glass-panel px-4 py-2 rounded-2xl max-w-md w-[90vw] text-center pointer-events-none">
-    <p id="room-welcome-text" class="text-xs md:text-sm font-medium text-slate-700"></p>
+  <!-- שלט קבלת פנים קלאסי לחדר -->
+  <div id="room-welcome-banner" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-20 museum-glass px-5 py-2.5 rounded-2xl max-w-lg w-[90vw] text-center pointer-events-none">
+    <p id="room-welcome-text" class="font-classic text-sm md:text-base font-bold text-[#292524]"></p>
   </div>
 
   <!-- פקדי צפייה בתוך יצירה -->
   <div id="inside-exhibit-hud" class="hidden fixed bottom-3 inset-x-3 z-30 flex flex-col items-center gap-2 pointer-events-none">
-    <div id="active-hotspot-box" class="hidden glass-panel p-4 rounded-3xl max-w-md w-full pointer-events-auto border-2 border-amber-400">
+    <div id="active-hotspot-box" class="hidden museum-glass p-4 rounded-3xl max-w-md w-full pointer-events-auto border-2 border-[#b88c46]">
       <div class="flex justify-between items-start gap-2">
-        <div class="flex items-center gap-1.5 text-amber-800 font-black text-sm">
-          <span>📍</span> <span id="hs-detail-title">הסבר</span>
+        <div class="flex items-center gap-1.5 text-[#7c5a24] font-classic font-black text-base">
+          <span>✦</span> <span id="hs-detail-title">הסבר אוצרותי</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <button onclick="speakCurrentHotspot()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-lg">🔊 הקרא</button>
-          <button onclick="closeHotspotCard()" class="text-slate-400 hover:text-slate-700 font-bold text-sm px-1">✕</button>
+          <button onclick="speakCurrentHotspot()" class="bg-[#f1eadc] hover:bg-[#e6dac3] text-[#4a1c24] text-xs font-bold px-2.5 py-1 rounded-lg">🔊 הקרא</button>
+          <button onclick="closeHotspotCard()" class="text-[#78716c] hover:text-[#1e1b18] font-bold text-sm px-1">✕</button>
         </div>
       </div>
-      <p id="hs-detail-text" class="text-slate-700 text-xs md:text-sm mt-1.5 leading-relaxed"></p>
+      <p id="hs-detail-text" class="text-[#292524] text-xs md:text-sm mt-2 leading-relaxed"></p>
       <div id="hs-detail-audio" class="mt-2.5 hidden"></div>
-      <a id="hs-detail-link" href="#" target="_blank" class="mt-2.5 hidden inline-flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl">
-        🔗 פתח קישור להרחבה
+      <a id="hs-detail-link" href="#" target="_blank" class="mt-2.5 hidden inline-flex items-center gap-1 text-xs font-bold btn-gold px-3 py-1.5 rounded-xl">
+        🔗 קישור להרחבה
       </a>
     </div>
 
-    <div id="reactions-bar" class="glass-panel px-2.5 py-1.5 rounded-2xl flex items-center gap-1.5 pointer-events-auto">
-      <button onclick="sendReaction('learned')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 transition">💡 למדתי חדש <span id="react-cnt-learned">0</span></button>
-      <button onclick="sendReaction('creative')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 transition">🎨 יצירתיות <span id="react-cnt-creative">0</span></button>
-      <button onclick="sendReaction('bravo')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 transition">👏 כל הכבוד <span id="react-cnt-bravo">0</span></button>
+    <div id="reactions-bar" class="museum-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1.5 pointer-events-auto">
+      <button onclick="sendReaction('learned')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-[#f5efe2] hover:bg-[#eadec8] text-[#4a1c24] transition">💡 למדתי חדש <span id="react-cnt-learned">0</span></button>
+      <button onclick="sendReaction('creative')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-[#f5efe2] hover:bg-[#eadec8] text-[#7c5a24] transition">🎨 יצירתיות <span id="react-cnt-creative">0</span></button>
+      <button onclick="sendReaction('bravo')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-[#f5efe2] hover:bg-[#eadec8] text-[#1e1b18] transition">👏 כל הכבוד <span id="react-cnt-bravo">0</span></button>
     </div>
 
-    <div class="glass-panel px-2.5 py-2 rounded-2xl flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto">
-      <button onclick="exitExhibitToZone()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl">↩️ לגלריה</button>
-      <button onclick="adjustZoom(-10)" class="bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-xl font-black text-sm" title="התקרב">➕</button>
-      <button onclick="adjustZoom(10)" class="bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-xl font-black text-sm" title="התרחק">➖</button>
-      <button onclick="toggleExhibitViewMode()" id="toggle-mode-btn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-2 rounded-xl">🌐 360°</button>
-      <button onclick="openExhibitInfoCard()" class="bg-sky-100 hover:bg-sky-200 text-sky-800 text-xs font-bold px-3 py-2 rounded-xl">ℹ️ תקציר</button>
+    <div class="museum-glass px-2.5 py-2 rounded-2xl flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto">
+      <button onclick="exitExhibitToZone()" class="btn-burgundy text-xs font-bold px-3.5 py-2 rounded-xl">↩️ חזרה לאולם</button>
+      <button onclick="adjustZoom(-10)" class="bg-[#f1eadc] hover:bg-[#e5d9c3] w-8 h-8 rounded-xl font-black text-sm" title="התקרב">➕</button>
+      <button onclick="adjustZoom(10)" class="bg-[#f1eadc] hover:bg-[#e5d9c3] w-8 h-8 rounded-xl font-black text-sm" title="התרחק">➖</button>
+      <button onclick="toggleExhibitViewMode()" id="toggle-mode-btn" class="bg-[#f1eadc] hover:bg-[#e5d9c3] text-[#4a1c24] text-xs font-bold px-2.5 py-2 rounded-xl">🌐 360°</button>
+      <button onclick="openExhibitInfoCard()" class="btn-gold text-xs font-bold px-3 py-2 rounded-xl">📜 כרטיסיית יצירה</button>
     </div>
   </div>
 
-  <!-- כרטיס פרטי יצירה -->
-  <div id="exhibit-info-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
+  <!-- כרטיסיית יצירה מוזיאונית -->
+  <div id="exhibit-info-modal" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-md w-full p-6 shadow-2xl">
       <div class="flex justify-between items-start">
         <div>
-          <span id="info-class" class="text-xs font-bold bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full"></span>
-          <h3 id="info-title" class="text-xl font-black text-slate-800 mt-2"></h3>
-          <p id="info-student" class="text-xs font-medium text-slate-500"></p>
+          <span id="info-class" class="text-xs font-bold bg-[#f1eadc] text-[#7c5a24] px-3 py-1 rounded-full"></span>
+          <h3 id="info-title" class="font-classic text-2xl font-black text-[#1e1b18] mt-2"></h3>
+          <p id="info-student" class="text-xs font-bold text-[#78716c]"></p>
         </div>
-        <button onclick="stopSpeech(); closeModal('exhibit-info-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+        <button onclick="stopSpeech(); closeModal('exhibit-info-modal')" class="bg-[#f1eadc] w-8 h-8 rounded-full font-bold">✕</button>
       </div>
-      <p id="info-summary" class="mt-4 text-sm text-slate-700 bg-slate-50 p-4 rounded-2xl leading-relaxed"></p>
-      <div class="mt-4 flex gap-2">
-        <button onclick="speakText(document.getElementById('info-title').innerText + '. ' + document.getElementById('info-summary').innerText)" class="flex-1 bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold py-2.5 rounded-xl text-sm">🔊 הקרא לי</button>
-        <button onclick="stopSpeech(); closeModal('exhibit-info-modal')" class="flex-1 bg-slate-800 text-white font-bold py-2.5 rounded-xl text-sm">סגור</button>
+      <div class="h-px bg-[#b88c46]/30 my-4"></div>
+      <p id="info-summary" class="text-sm text-[#292524] leading-relaxed whitespace-pre-line"></p>
+      <div class="mt-5 flex gap-2">
+        <button onclick="speakText(document.getElementById('info-title').innerText + '. ' + document.getElementById('info-summary').innerText)" class="flex-1 bg-[#f1eadc] hover:bg-[#e5d9c3] text-[#4a1c24] font-bold py-2.5 rounded-xl text-sm">🔊 הקרא לי</button>
+        <button onclick="stopSpeech(); closeModal('exhibit-info-modal')" class="flex-1 btn-burgundy font-bold py-2.5 rounded-xl text-sm">סגור</button>
       </div>
     </div>
   </div>
 
-  <!-- מודאל קוד גישה להעלאת תוצר -->
-  <div id="upload-gate-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 shadow-2xl text-center">
-      <div class="text-3xl mb-1">🔒</div>
-      <h3 class="text-lg font-black text-slate-800">קוד גישה להעלאת תוצר</h3>
-      <p class="text-xs text-slate-500 mb-3">הקלידו את קוד הכיתה כדי להעלות תמונה</p>
-      <input type="password" inputmode="numeric" id="upload-pin-input" placeholder="••••" class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2 mb-3">
-      <button id="verify-pin-btn" onclick="verifyUploadPin()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl">המשך להעלאה</button>
-      <button onclick="closeModal('upload-gate-modal')" class="mt-2 text-xs text-slate-400">ביטול</button>
+  <!-- מודאל קוד כיתה להעלאת יצירה -->
+  <div id="upload-gate-modal" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-xs w-full p-6 shadow-2xl text-center">
+      <div class="text-3xl mb-1">🔐</div>
+      <h3 class="font-classic text-xl font-black text-[#1e1b18]">קוד גישה להעלאת יצירה</h3>
+      <p class="text-xs text-[#78716c] mb-3">הקלידו את קוד הכיתה כדי להגיש יצירה לאוצרות</p>
+      <input type="password" inputmode="numeric" id="upload-pin-input" placeholder="••••" onkeydown="if(event.key==='Enter') verifyUploadPin()" class="w-full text-center text-2xl tracking-widest border border-[#cbb58d] bg-white rounded-xl py-2 mb-3">
+      <button id="verify-pin-btn" onclick="verifyUploadPin()" class="w-full btn-gold font-bold py-2.5 rounded-xl">המשך להעלאה</button>
+      <button onclick="closeModal('upload-gate-modal')" class="mt-2.5 text-xs text-[#78716c]">ביטול</button>
     </div>
   </div>
 
-  <!-- מודאל העלאת תוצר ע"י תלמיד -->
-  <div id="upload-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+  <!-- מודאל הגשת יצירת תלמיד -->
+  <div id="upload-modal" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-black text-slate-800">🎨 הוספת יצירה למוזיאון</h2>
-        <button onclick="closeModal('upload-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+        <h2 class="font-classic text-2xl font-black text-[#1e1b18]">🎨 הגשת יצירה למוזיאון</h2>
+        <button onclick="closeModal('upload-modal')" class="bg-[#f1eadc] w-8 h-8 rounded-full font-bold">✕</button>
       </div>
       <form id="upload-form" onsubmit="submitStudentWork(event)" class="space-y-3.5">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">שם התלמיד/ה *</label>
-            <input type="text" id="up-name" required placeholder="למשל: נועה לוי" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <label class="block text-xs font-bold text-[#57534e] mb-1">שם התלמיד/ה *</label>
+            <input type="text" id="up-name" required placeholder="למשל: נועה לוי" class="w-full border border-[#d6c7ad] bg-white rounded-xl px-3 py-2 text-sm">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">כיתה *</label>
-            <input type="text" id="up-class" required placeholder="למשל: ה'2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+            <label class="block text-xs font-bold text-[#57534e] mb-1">כיתה *</label>
+            <input type="text" id="up-class" required placeholder="למשל: ה'2" class="w-full border border-[#d6c7ad] bg-white rounded-xl px-3 py-2 text-sm">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">נושא / כותרת היצירה *</label>
-          <input type="text" id="up-title" required placeholder="מה רואים בתמונה?" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          <label class="block text-xs font-bold text-[#57534e] mb-1">שם היצירה / הנושא *</label>
+          <input type="text" id="up-title" required placeholder="מה רואים בתמונה?" class="w-full border border-[#d6c7ad] bg-white rounded-xl px-3 py-2 text-sm">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">באיזה אזור תרצו להציג?</label>
-          <select id="up-zone" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"></select>
+          <label class="block text-xs font-bold text-[#57534e] mb-1">אולם מועדף לתצוגה</label>
+          <select id="up-zone" class="w-full border border-[#d6c7ad] bg-white rounded-xl px-3 py-2 text-sm"></select>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">תקציר והסבר על מה שלמדתי *</label>
-          <textarea id="up-summary" rows="3" required placeholder="ספרו בקצרה מה חקרתם ומה גיליתם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
+          <label class="block text-xs font-bold text-[#57534e] mb-1">תקציר והסבר על מה שלמדתי *</label>
+          <textarea id="up-summary" rows="3" required placeholder="ספרו בקצרה מה חקרתם ומה גיליתם..." class="w-full border border-[#d6c7ad] bg-white rounded-xl px-3 py-2 text-sm"></textarea>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">בחירת תמונה *</label>
-          <input type="file" id="up-file" accept="image/*" required class="w-full text-sm text-slate-500 file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700">
+          <label class="block text-xs font-bold text-[#57534e] mb-1">תמונת היצירה *</label>
+          <input type="file" id="up-file" accept="image/*" required class="w-full text-sm text-[#57534e] file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#f1eadc] file:text-[#4a1c24]">
         </div>
-        <button type="submit" id="up-submit-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg">
-          🚀 שלח לאישור מנהלי המוזיאון
+        <button type="submit" id="up-submit-btn" class="w-full btn-gold font-bold py-3 rounded-xl shadow-lg">
+          ✦ שלח לאישור אוצרי המוזיאון
         </button>
       </form>
     </div>
   </div>
 
-  <!-- מודאל התחברות צוות -->
-  <div id="login-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
-      <h2 class="text-xl font-black text-slate-800 mb-1">🔐 כניסת צוות ומנהלי מוזיאון</h2>
-      <p class="text-xs text-slate-500 mb-4">הזינו את קוד הגישה האישי שקיבלתם</p>
-      <input type="password" inputmode="numeric" id="login-code-input" placeholder="הקלידו קוד..." class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2.5 mb-3">
-      <button id="login-submit-btn" onclick="performLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl">כניסה למערכת</button>
-      <button onclick="closeModal('login-modal')" class="mt-2 text-xs text-slate-400">ביטול</button>
+  <!-- מודאל כניסת צוות ומנהלים -->
+  <div id="login-modal" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+      <div class="text-3xl mb-1">🏛️</div>
+      <h2 class="font-classic text-2xl font-black text-[#1e1b18] mb-1">לשכת האוצרות והניהול</h2>
+      <p class="text-xs text-[#78716c] mb-4">הזינו את קוד הגישה האישי</p>
+      <input type="password" inputmode="numeric" id="login-code-input" placeholder="הקלידו קוד..." onkeydown="if(event.key==='Enter') performLogin()" class="w-full text-center text-2xl tracking-widest border border-[#cbb58d] bg-white rounded-xl py-2.5 mb-3">
+      <button id="login-submit-btn" onclick="performLogin()" class="w-full btn-burgundy font-bold py-2.5 rounded-xl">כניסה ללשכת הניהול</button>
+      <button onclick="closeModal('login-modal')" class="mt-2.5 text-xs text-[#78716c]">ביטול</button>
     </div>
   </div>
 
-  <!-- חדר בקרה וניהול (יציב ללא קפיצת לשוניות!) -->
-  <div id="admin-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-      <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
+  <!-- לשכת האוצרות והניהול המשודרגת -->
+  <div id="admin-modal" class="fixed inset-0 z-40 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-5">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 md:p-5 bg-gradient-to-l from-[#3d161d] to-[#5d232d] text-[#faf7f0] flex flex-wrap justify-between items-center gap-3">
         <div>
-          <h2 class="text-lg font-black">🏛️ חדר הבקרה של המוזיאון</h2>
-          <p id="admin-role-label" class="text-xs text-indigo-200"></p>
+          <div class="text-[10px] tracking-[0.22em] text-[#e2c285] font-bold">CURATORIAL CONTROL STUDIO</div>
+          <h2 class="font-classic text-xl md:text-2xl font-black">לשכת האוצרות והניהול</h2>
+          <p id="admin-role-label" class="text-xs text-[#e2c285]/90"></p>
         </div>
-        <div class="flex gap-2">
-          <button onclick="logoutAdmin()" class="bg-indigo-500 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
-          <button onclick="closeModal('admin-modal')" class="bg-white/20 w-8 h-8 rounded-full font-bold">✕</button>
+        <div class="flex items-center gap-2">
+          <span id="api-status-badge" class="text-[11px] bg-white/10 px-2.5 py-1 rounded-full">v3.0</span>
+          <button onclick="refreshData(true)" class="bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl text-xs font-bold">🔄 רענן</button>
+          <button onclick="logoutAdmin()" class="bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
+          <button onclick="closeModal('admin-modal')" class="bg-white/20 hover:bg-white/30 w-8 h-8 rounded-full font-bold">✕</button>
         </div>
       </div>
 
-      <div id="api-version-warning" class="hidden bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-bold text-amber-900">
-        ⚠️ שים לב: נראה שסקריפט השרת (Code.gs) טרם נפרס לגרסה 2.1. יש ללחוץ ב-Apps Script על: פרוס ← ניהול פריסות ← עריכה (עיפרון) ← גרסה חדשה ← פרוס.
+      <div id="api-version-warning" class="hidden bg-amber-100 border-b border-amber-300 px-4 py-2 text-xs font-bold text-amber-950">
+        ⚠️ סקריפט השרת (Code.gs) עדיין לא נפרס לגרסה 3.0. יש להיכנס ל-Apps Script וללחוץ: פרוס ← ניהול פריסות ← עריכה (עיפרון) ← גרסה חדשה ← פרוס.
       </div>
 
-      <div class="flex border-b border-slate-200 bg-slate-50 px-3 pt-2 gap-1.5 text-xs md:text-sm font-bold overflow-x-auto">
-        <button onclick="switchAdminTab('pending')" class="admin-tab px-3 py-2 rounded-t-xl bg-white text-indigo-600 border-t border-x border-slate-200 whitespace-nowrap" data-tab="pending">⏳ ממתינים לאישור</button>
-        <button onclick="switchAdminTab('approved')" class="admin-tab px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="approved">🖼️ מוצגים ונקודות חמות</button>
-        <button onclick="switchAdminTab('zones')" class="admin-tab px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="zones">🗺️ חדרים וכיתובים</button>
-        <button id="tab-staff-btn" onclick="switchAdminTab('staff')" class="admin-tab hidden px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="staff">👑 צוות והגדרות לובי</button>
+      <div id="admin-kpi-bar" class="grid grid-cols-4 gap-2 px-4 py-3 bg-[#f1eadc]/80 border-b border-[#d6c7ad]/60 text-center"></div>
+
+      <div class="flex border-b border-[#d6c7ad] bg-[#f1eadc]/50 px-3 pt-2 gap-1.5 text-xs md:text-sm font-bold overflow-x-auto">
+        <button onclick="switchAdminTab('pending')" class="admin-tab px-3.5 py-2 rounded-t-xl whitespace-nowrap" data-tab="pending">⏳ ממתינים לאישור</button>
+        <button onclick="switchAdminTab('approved')" class="admin-tab px-3.5 py-2 rounded-t-xl whitespace-nowrap" data-tab="approved">🖼️ אוצרות מוצגים</button>
+        <button onclick="switchAdminTab('zones')" class="admin-tab px-3.5 py-2 rounded-t-xl whitespace-nowrap" data-tab="zones">🏛️ אולמות ורקעי 360</button>
+        <button id="tab-staff-btn" onclick="switchAdminTab('staff')" class="admin-tab hidden px-3.5 py-2 rounded-t-xl whitespace-nowrap" data-tab="staff">👑 צוות והרשאות</button>
       </div>
 
-      <div id="admin-content" class="p-5 overflow-y-auto flex-1 space-y-4"></div>
+      <div id="admin-content" class="p-4 md:p-6 overflow-y-auto flex-1 space-y-4"></div>
     </div>
   </div>
 
-  <!-- עורך נקודות חמות + הקלטת קול אוניברסלית -->
-  <div id="hotspot-editor-modal" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
-      <div class="md:w-3/5 bg-slate-100 p-4 flex flex-col items-center justify-center overflow-auto">
-        <p class="text-xs font-bold text-indigo-600 mb-2">👆 לחצו בדיוק על הפרט בתמונה כדי למקם נקודה חמה</p>
+  <!-- סטודיו נקודות חמות + הקלטה קולית -->
+  <div id="hotspot-editor-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-5xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
+      <div class="md:w-3/5 bg-[#ebe3d2] p-4 flex flex-col items-center justify-center overflow-auto">
+        <p class="text-xs font-bold text-[#4a1c24] mb-2">👆 לחצו בדיוק על הפרט בתמונה כדי להוסיף נקודה חמה</p>
         <div class="relative inline-block cursor-crosshair" onclick="addHotspotAtClick(event)">
-          <img id="editor-img" src="" class="max-h-[58vh] w-auto rounded-2xl shadow">
+          <img id="editor-img" src="" class="max-h-[60vh] w-auto rounded-2xl shadow-lg border-2 border-[#b88c46]/40">
           <div id="editor-hotspots-layer" class="absolute inset-0 pointer-events-none"></div>
         </div>
       </div>
 
-      <div class="md:w-2/5 p-5 flex flex-col justify-between overflow-y-auto">
+      <div class="md:w-2/5 p-5 flex flex-col justify-between overflow-y-auto bg-[#faf7f0]">
         <div>
           <div class="flex justify-between items-center mb-3">
-            <h3 class="font-black text-lg text-slate-800">📍 עורך נקודות חמות</h3>
-            <button onclick="closeHotspotEditor()" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+            <h3 class="font-classic font-black text-xl text-[#1e1b18]">📍 סטודיו נקודות חמות</h3>
+            <button onclick="closeHotspotEditor()" class="bg-[#f1eadc] w-8 h-8 rounded-full font-bold">✕</button>
           </div>
-          <div id="editor-hotspots-list" class="space-y-3 max-h-[52vh] overflow-y-auto pr-1"></div>
+          <div id="editor-hotspots-list" class="space-y-3 max-h-[54vh] overflow-y-auto pr-1"></div>
         </div>
 
-        <button onclick="saveHotspotsToServer()" id="save-hs-btn" class="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow">
+        <button onclick="saveHotspotsToServer()" id="save-hs-btn" class="mt-4 w-full btn-gold font-bold py-3 rounded-xl shadow">
           💾 שמור נקודות חמות למוזיאון
         </button>
       </div>
     </div>
   </div>
 
-  <!-- מודאל ברקוד QR כללי -->
-  <div id="qr-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
-      <h3 class="text-xl font-black text-slate-800 mb-1">📱 סריקה מהירה לכניסה למוזיאון</h3>
-      <p class="text-xs text-slate-500 mb-4">כוונו את מצלמת הטלפון אל הברקוד</p>
-      <div class="flex justify-center p-4 bg-white rounded-2xl border-2 border-slate-100 shadow-inner mb-3">
+  <!-- ברקוד QR כללי -->
+  <div id="qr-modal" class="fixed inset-0 z-40 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] gold-border rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+      <h3 class="font-classic text-2xl font-black text-[#1e1b18] mb-1">📱 כניסה למוזיאון 360</h3>
+      <p class="text-xs text-[#78716c] mb-4">סרקו עם מצלמת הטלפון או הטאבלט</p>
+      <div class="flex justify-center p-4 bg-white rounded-2xl border border-[#d6c7ad] mb-3">
         <img id="qr-image-el" src="" alt="QR Code" class="w-52 h-52 object-contain">
       </div>
-      <p id="qr-url-label" class="text-[11px] text-slate-400 break-all mb-4" dir="ltr"></p>
-      <button onclick="closeModal('qr-modal')" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl">סגור</button>
+      <p id="qr-url-label" class="text-[11px] text-[#78716c] break-all mb-4" dir="ltr"></p>
+      <button onclick="closeModal('qr-modal')" class="w-full btn-burgundy font-bold py-2.5 rounded-xl">סגור</button>
     </div>
   </div>
 
-  <!-- מודאל שלט QR פיזיטלי להדפסה -->
-  <div id="plaque-modal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center">
-      <div id="printable-plaque-area" class="border-4 border-sky-600 rounded-3xl p-6 bg-gradient-to-b from-white to-sky-50 text-center">
-        <div class="text-xs font-bold text-sky-700 tracking-wide mb-1">🏛️ המוזיאון הפיזיטלי 360</div>
-        <h2 id="plaque-title" class="text-2xl font-black text-slate-900"></h2>
-        <p id="plaque-meta" class="text-sm font-bold text-slate-600 mt-1"></p>
-        <div class="my-4 flex justify-center">
-          <img id="plaque-qr" src="" class="w-44 h-44 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+  <!-- שלט מוזיאוני פיזיטלי להדפסה -->
+  <div id="plaque-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#faf7f0] rounded-3xl max-w-md w-full p-6 shadow-2xl text-center">
+      <div id="printable-plaque-area" class="border-4 border-[#b88c46] rounded-3xl p-6 bg-[#faf7f0] text-center">
+        <div class="text-[11px] font-bold tracking-[0.22em] text-[#9c7435] mb-1">✦ המוזיאון הפיזיטלי 360 ✦</div>
+        <h2 id="plaque-title" class="font-classic text-3xl font-black text-[#1e1b18]"></h2>
+        <p id="plaque-meta" class="text-sm font-bold text-[#57534e] mt-1"></p>
+        <div class="w-20 h-0.5 bg-[#b88c46] mx-auto my-3"></div>
+        <div class="my-3 flex justify-center">
+          <img id="plaque-qr" src="" class="w-44 h-44 bg-white p-2 rounded-2xl border border-[#d6c7ad]">
         </div>
-        <p class="text-xs font-bold text-sky-800">📱 סרקו אותי כדי להיכנס לתוך היצירה ב-360° ולשמוע את ההסבר!</p>
+        <p class="text-xs font-bold text-[#4a1c24]">📱 סרקו כדי להיכנס אל תוך היצירה ב-360° ולשמוע את האמן!</p>
       </div>
       <div class="mt-4 flex gap-2">
-        <button onclick="window.print()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl">🖨️ הדפס שלט</button>
-        <button onclick="closeModal('plaque-modal')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2.5 rounded-xl">סגור</button>
+        <button onclick="window.print()" class="flex-1 btn-gold font-bold py-2.5 rounded-xl">🖨️ הדפס שלט</button>
+        <button onclick="closeModal('plaque-modal')" class="flex-1 bg-[#f1eadc] text-[#1e1b18] font-bold py-2.5 rounded-xl">סגור</button>
       </div>
     </div>
   </div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
-    const EXPECTED_API_VERSION = "2.1";
+    const EXPECTED_API_VERSION = "3.0";
 
-    let scene, camera, renderer, skyMesh, floorMesh, roomGroup;
+    let scene, camera, renderer, skyMesh, floorMesh, roomGroup, dustPoints;
     let clickableObjects = [];
     let animatedDoors = [];
     let pulsingPins = [];
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
-    let camLon = 0, camLat = 0, targetFov = 75;
+    let camLon = 0, camLat = 0, targetLon = 0, targetLat = 0;
+    let targetFov = 72;
+    let camPosTarget = new THREE.Vector3(0, 0, 0);
+    let isTransitioning = false;
     let isDragging = false, prevX = 0, prevY = 0, dragDistance = 0;
 
     let museumData = {
       apiVersion: "",
-      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "", themeColor: "#0ea5e9", status: "approved", welcomeText: "" }],
+      zones: [{ id: "zone_main", name: "אולם התגליות והחקר", description: "", themeColor: "#c59d5f", status: "approved", welcomeText: "", bgImageUrl: "" }],
       exhibits: [],
       staff: [],
       settings: {}
@@ -312,6 +381,7 @@
     let currentUser = null;
     let currentAuthCode = "";
     let currentAdminTab = "pending";
+    let approvedFilterZone = "all";
     let verifiedUploadPin = "";
     let currentView = "lobby";
     let activeZoneId = null;
@@ -322,49 +392,122 @@
     const imageCache = {};
     const imageInFlight = {};
     const audioCache = {};
+    const fetchQueue = [];
+    let activeFetches = 0;
+
     let editingExhibitId = null, draftHotspots = [];
     let mediaRecorder = null, audioChunks = [], recTimerInterval = null, recSeconds = 0;
     let uploadingAudioCount = 0;
 
-    function createPanoramaCanvas(type) {
+    function createMarbleTexture(baseHex, veinHex) {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = baseHex || "#f4efe4";
+      ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = veinHex || "rgba(168, 152, 128, 0.24)";
+      for (let i = 0; i < 24; i++) {
+        ctx.beginPath();
+        ctx.lineWidth = Math.random() * 2.5 + 0.6;
+        let x = Math.random() * 512, y = 0;
+        ctx.moveTo(x, y);
+        while (y < 512) {
+          x += (Math.random() - 0.5) * 42;
+          y += 28;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(120, 100, 75, 0.06)";
+      for (let x = 0; x < 512; x += 32) ctx.fillRect(x, 0, 10, 512);
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function createClassicalDoorTexture() {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 1024;
+      const ctx = c.getContext("2d");
+      const g = ctx.createLinearGradient(0, 0, 512, 1024);
+      g.addColorStop(0, "#4a221c");
+      g.addColorStop(0.5, "#361612");
+      g.addColorStop(1, "#260e0b");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 512, 1024);
+
+      const panels = [
+        [52, 70, 408, 280],
+        [52, 390, 408, 280],
+        [52, 710, 408, 240]
+      ];
+      panels.forEach(([x, y, w, h]) => {
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = "#c59d5f";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(x + 12, y + 12, w - 24, h - 24);
+        ctx.strokeStyle = "rgba(226, 194, 133, 0.55)";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 26, y + 26, w - 52, h - 52);
+      });
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+
+    function createClassicalRotundaCanvas(variant) {
       const c = document.createElement("canvas");
       c.width = 2048; c.height = 1024;
       const ctx = c.getContext("2d");
 
       const g = ctx.createLinearGradient(0, 0, 0, 1024);
-      if (type === "lobby") {
-        g.addColorStop(0, "#0c4a6e");
-        g.addColorStop(0.28, "#38bdf8");
-        g.addColorStop(0.50, "#f0f9ff");
-        g.addColorStop(0.62, "#fef3c7");
-        g.addColorStop(0.74, "#e2e8f0");
-        g.addColorStop(1, "#cbd5e1");
+      if (variant === "lobby") {
+        g.addColorStop(0.0, "#f5ecd8");
+        g.addColorStop(0.22, "#efe3cb");
+        g.addColorStop(0.46, "#e8dec9");
+        g.addColorStop(0.52, "#d8cab0");
+        g.addColorStop(0.66, "#cfc1a6");
+        g.addColorStop(1.0, "#b8a88c");
       } else {
-        g.addColorStop(0, "#dbeafe");
-        g.addColorStop(0.45, "#f8fafc");
-        g.addColorStop(0.75, "#e2e8f0");
-        g.addColorStop(1, "#cbd5e1");
+        g.addColorStop(0.0, "#faf6ee");
+        g.addColorStop(0.28, "#f3ece0");
+        g.addColorStop(0.50, "#ece4d6");
+        g.addColorStop(0.55, "#dfd5c3");
+        g.addColorStop(1.0, "#c8bc9f");
       }
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 2048, 1024);
 
-      ctx.strokeStyle = type === "lobby" ? "rgba(255,255,255,0.45)" : "rgba(14,165,233,0.16)";
-      ctx.lineWidth = type === "lobby" ? 5 : 3;
+      ctx.strokeStyle = "rgba(184, 140, 70, 0.35)";
+      ctx.lineWidth = 4;
       for (let x = 0; x < 2048; x += 128) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 320); ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(184, 140, 70, 0.45)";
+      ctx.fillRect(0, 315, 2048, 10);
+      ctx.fillRect(0, 332, 2048, 4);
+
+      for (let x = 0; x < 2048; x += 256) {
+        ctx.fillStyle = "rgba(255, 252, 245, 0.45)";
+        ctx.fillRect(x + 18, 336, 36, 360);
+        ctx.strokeStyle = "rgba(184, 140, 70, 0.32)";
+        ctx.lineWidth = 6;
         ctx.beginPath();
-        ctx.arc(x + 64, 512, 160, Math.PI, 0);
+        ctx.arc(x + 128, 455, 92, Math.PI, 0);
         ctx.stroke();
-        ctx.fillStyle = type === "lobby" ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.22)";
-        ctx.fillRect(x + 54, 512, 20, 360);
       }
 
-      ctx.fillStyle = type === "lobby" ? "rgba(251, 191, 36, 0.35)" : "rgba(56, 189, 248, 0.2)";
-      ctx.fillRect(0, 510, 2048, 4);
+      ctx.fillStyle = "rgba(139, 105, 53, 0.35)";
+      ctx.fillRect(0, 690, 2048, 8);
       return c;
     }
 
-    const fallbackLobbyCanvas = createPanoramaCanvas("lobby");
-    const fallbackGalleryCanvas = createPanoramaCanvas("gallery");
+    const marbleTex = createMarbleTexture("#f4eee1", "rgba(155, 138, 112, 0.28)");
+    const doorWoodTex = createClassicalDoorTexture();
+    const fallbackLobbyCanvas = createClassicalRotundaCanvas("lobby");
+    const fallbackGalleryCanvas = createClassicalRotundaCanvas("gallery");
 
     function drawRoundedRect(ctx, x, y, w, h, r) {
       ctx.beginPath();
@@ -380,16 +523,25 @@
       ctx.closePath();
     }
 
-    function makeHebrewSignTexture(title, subtitle, bg, accent, textColor) {
+    function makeClassicalPlaqueTexture(title, subtitle, accentHex) {
       const c = document.createElement("canvas");
-      c.width = 680; c.height = subtitle ? 190 : 120;
+      c.width = 760; c.height = subtitle ? 210 : 130;
       const ctx = c.getContext("2d");
 
-      drawRoundedRect(ctx, 8, 8, c.width - 16, c.height - 16, 26);
-      ctx.fillStyle = bg || "#0f172a";
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, c.height);
+      bgGrad.addColorStop(0, "#241914");
+      bgGrad.addColorStop(1, "#160f0c");
+      drawRoundedRect(ctx, 8, 8, c.width - 16, c.height - 16, 18);
+      ctx.fillStyle = bgGrad;
       ctx.fill();
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = accent || "#38bdf8";
+
+      ctx.lineWidth = 7;
+      ctx.strokeStyle = accentHex || "#c59d5f";
+      ctx.stroke();
+
+      drawRoundedRect(ctx, 20, 20, c.width - 40, c.height - 40, 12);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(226, 194, 133, 0.55)";
       ctx.stroke();
 
       ctx.direction = "rtl";
@@ -397,17 +549,17 @@
       ctx.textBaseline = "middle";
 
       if (subtitle) {
-        ctx.font = "900 42px Rubik, Arial, sans-serif";
-        ctx.fillStyle = textColor || "#ffffff";
-        ctx.fillText(title || "", c.width / 2, c.height * 0.38, c.width - 48);
+        ctx.font = "900 48px 'Frank Ruhl Libre', serif";
+        ctx.fillStyle = "#faf7f0";
+        ctx.fillText(title || "", c.width / 2, c.height * 0.39, c.width - 70);
 
-        ctx.font = "600 28px Rubik, Arial, sans-serif";
-        ctx.fillStyle = accent || "#38bdf8";
-        ctx.fillText(subtitle, c.width / 2, c.height * 0.73, c.width - 48);
+        ctx.font = "600 26px Heebo, Arial, sans-serif";
+        ctx.fillStyle = "#e2c285";
+        ctx.fillText(subtitle, c.width / 2, c.height * 0.73, c.width - 70);
       } else {
-        ctx.font = "900 42px Rubik, Arial, sans-serif";
-        ctx.fillStyle = textColor || "#ffffff";
-        ctx.fillText(title || "", c.width / 2, c.height / 2, c.width - 48);
+        ctx.font = "900 46px 'Frank Ruhl Libre', serif";
+        ctx.fillStyle = "#faf7f0";
+        ctx.fillText(title || "", c.width / 2, c.height / 2, c.width - 70);
       }
 
       const tex = new THREE.CanvasTexture(c);
@@ -418,39 +570,39 @@
 
     function makeHotspotPinTexture(num, label) {
       const c = document.createElement("canvas");
-      c.width = 360; c.height = 175;
+      c.width = 380; c.height = 180;
       const ctx = c.getContext("2d");
 
       ctx.beginPath();
-      ctx.arc(180, 54, 46, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(56, 189, 248, 0.38)";
+      ctx.arc(190, 56, 46, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(197, 157, 95, 0.36)";
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(180, 54, 32, 0, Math.PI * 2);
-      ctx.fillStyle = "#0284c7";
+      ctx.arc(190, 56, 32, 0, Math.PI * 2);
+      ctx.fillStyle = "#4a1c24";
       ctx.fill();
       ctx.lineWidth = 5;
-      ctx.strokeStyle = "#ffffff";
+      ctx.strokeStyle = "#e2c285";
       ctx.stroke();
 
-      ctx.font = "900 34px Rubik, Arial, sans-serif";
-      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 34px 'Frank Ruhl Libre', serif";
+      ctx.fillStyle = "#faf7f0";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(String(num), 180, 56);
+      ctx.fillText(String(num), 190, 58);
 
-      drawRoundedRect(ctx, 18, 110, 324, 54, 18);
-      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      drawRoundedRect(ctx, 18, 112, 344, 54, 16);
+      ctx.fillStyle = "rgba(30, 22, 18, 0.92)";
       ctx.fill();
       ctx.lineWidth = 3;
-      ctx.strokeStyle = "#38bdf8";
+      ctx.strokeStyle = "#c59d5f";
       ctx.stroke();
 
       ctx.direction = "rtl";
-      ctx.font = "700 24px Rubik, Arial, sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(label || ("נקודה " + num), 180, 137, 300);
+      ctx.font = "700 24px Heebo, Arial, sans-serif";
+      ctx.fillStyle = "#faf7f0";
+      ctx.fillText(label || ("נקודה " + num), 190, 139, 310);
 
       const tex = new THREE.CanvasTexture(c);
       tex.encoding = THREE.sRGBEncoding;
@@ -461,7 +613,7 @@
     function initThreeEngine() {
       const container = document.getElementById("scene-container");
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
       camera.position.set(0, 0, 0);
 
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -470,21 +622,46 @@
       renderer.outputEncoding = THREE.sRGBEncoding;
       container.appendChild(renderer.domElement);
 
-      const skyGeo = new THREE.SphereGeometry(50, 48, 32);
+      const hemi = new THREE.HemisphereLight(0xfff9eb, 0xb8a384, 1.15);
+      scene.add(hemi);
+      const sun = new THREE.DirectionalLight(0xfff2d6, 0.85);
+      sun.position.set(8, 14, 6);
+      scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xe6f0ff, 0.35);
+      fill.position.set(-8, 6, -8);
+      scene.add(fill);
+
+      const skyGeo = new THREE.SphereGeometry(55, 48, 32);
       skyGeo.scale(-1, 1, 1);
       const initTex = new THREE.CanvasTexture(fallbackLobbyCanvas);
       initTex.encoding = THREE.sRGBEncoding;
-      const skyMat = new THREE.MeshBasicMaterial({ map: initTex });
-      skyMesh = new THREE.Mesh(skyGeo, skyMat);
+      skyMesh = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ map: initTex }));
       skyMesh.rotation.y = -Math.PI / 2;
       scene.add(skyMesh);
 
-      const floorGeo = new THREE.CircleGeometry(15, 48);
-      const floorMat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9, transparent: true, opacity: 0.22 });
+      const floorGeo = new THREE.CircleGeometry(14, 64);
+      const floorMat = new THREE.MeshStandardMaterial({
+        map: marbleTex, color: 0xf7f2e7, roughness: 0.35, metalness: 0.08, transparent: true, opacity: 0.32
+      });
       floorMesh = new THREE.Mesh(floorGeo, floorMat);
       floorMesh.rotation.x = -Math.PI / 2;
-      floorMesh.position.y = -2.1;
+      floorMesh.position.y = -2.35;
       scene.add(floorMesh);
+
+      const pCount = 120;
+      const pPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount; i++) {
+        const r = 4 + Math.random() * 14;
+        const a = Math.random() * Math.PI * 2;
+        pPos[i * 3] = Math.cos(a) * r;
+        pPos[i * 3 + 1] = (Math.random() - 0.3) * 8;
+        pPos[i * 3 + 2] = Math.sin(a) * r;
+      }
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0xf6d896, size: 0.075, transparent: true, opacity: 0.65 });
+      dustPoints = new THREE.Points(pGeo, pMat);
+      scene.add(dustPoints);
 
       roomGroup = new THREE.Group();
       scene.add(roomGroup);
@@ -527,8 +704,11 @@
         obj.traverse(child => {
           if (child.geometry) child.geometry.dispose();
           if (child.material) {
-            if (Array.isArray(child.material)) child.material.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
-            else { if (child.material.map) child.material.map.dispose(); child.material.dispose(); }
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(m => {
+              if (m.map && m.map !== marbleTex && m.map !== doorWoodTex) m.map.dispose();
+              m.dispose();
+            });
           }
         });
         roomGroup.remove(obj);
@@ -538,41 +718,47 @@
     function animateLoop() {
       requestAnimationFrame(animateLoop);
 
-      camLat = Math.max(-80, Math.min(80, camLat));
+      targetLat = Math.max(-78, Math.min(78, targetLat));
+      camLon += (targetLon - camLon) * 0.085;
+      camLat += (targetLat - camLat) * 0.085;
+      camera.position.lerp(camPosTarget, 0.045);
+
       const phi = THREE.MathUtils.degToRad(90 - camLat);
       const theta = THREE.MathUtils.degToRad(camLon - 90);
-      camera.lookAt(
-        Math.sin(phi) * Math.cos(theta),
-        Math.cos(phi),
-        Math.sin(phi) * Math.sin(theta)
-      );
+      const dirX = Math.sin(phi) * Math.cos(theta);
+      const dirY = Math.cos(phi);
+      const dirZ = Math.sin(phi) * Math.sin(theta);
+      camera.lookAt(camera.position.x + dirX, camera.position.y + dirY, camera.position.z + dirZ);
 
-      if (Math.abs(camera.fov - targetFov) > 0.1) {
-        camera.fov += (targetFov - camera.fov) * 0.16;
+      if (Math.abs(camera.fov - targetFov) > 0.08) {
+        camera.fov += (targetFov - camera.fov) * 0.08;
         camera.updateProjectionMatrix();
       }
 
       animatedDoors.forEach(d => {
         if (d.opening) {
-          d.progress = Math.min(1, d.progress + 0.055);
-          const ease = 1 - Math.pow(1 - d.progress, 3);
-          d.leftPivot.rotation.y = ease * 1.85;
-          d.rightPivot.rotation.y = -ease * 1.85;
+          d.progress = Math.min(1, d.progress + 0.015);
+          const ease = d.progress * d.progress * (3 - 2 * d.progress);
+          d.leftPivot.rotation.y = ease * 1.92;
+          d.rightPivot.rotation.y = -ease * 1.92;
+          if (d.glowMesh) d.glowMesh.material.opacity = 0.25 + ease * 0.55;
         }
       });
 
-      const t = performance.now() * 0.004;
+      const t = performance.now() * 0.0028;
       pulsingPins.forEach((pin, idx) => {
-        const s = 1 + Math.sin(t + idx) * 0.07;
+        const s = 1 + Math.sin(t + idx) * 0.065;
         pin.scale.set(s, s, 1);
       });
+
+      if (dustPoints) dustPoints.rotation.y += 0.00035;
 
       renderer.render(scene, camera);
     }
 
     function setup360Controls(domEl) {
       const handleTap = (clientX, clientY) => {
-        if (dragDistance > 12) return;
+        if (dragDistance > 12 || isTransitioning) return;
         const rect = domEl.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
@@ -584,14 +770,15 @@
       };
 
       domEl.addEventListener("mousedown", e => {
+        if (isTransitioning) return;
         isDragging = true; prevX = e.clientX; prevY = e.clientY; dragDistance = 0;
       });
       window.addEventListener("mousemove", e => {
-        if (!isDragging) return;
+        if (!isDragging || isTransitioning) return;
         const dx = e.clientX - prevX, dy = e.clientY - prevY;
         dragDistance += Math.abs(dx) + Math.abs(dy);
-        camLon -= dx * 0.22;
-        camLat += dy * 0.22;
+        targetLon -= dx * 0.20;
+        targetLat += dy * 0.20;
         prevX = e.clientX; prevY = e.clientY;
       });
       window.addEventListener("mouseup", e => {
@@ -601,13 +788,12 @@
         }
       });
 
-      let initialPinchDist = 0;
-      let lastTouchX = 0, lastTouchY = 0;
+      let initialPinchDist = 0, lastTouchX = 0, lastTouchY = 0;
       domEl.addEventListener("touchstart", e => {
+        if (isTransitioning) return;
         if (e.touches.length === 1) {
           isDragging = true;
-          prevX = e.touches[0].clientX;
-          prevY = e.touches[0].clientY;
+          prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
           lastTouchX = prevX; lastTouchY = prevY;
           dragDistance = 0;
         } else if (e.touches.length === 2) {
@@ -620,14 +806,13 @@
       }, { passive: true });
 
       domEl.addEventListener("touchmove", e => {
+        if (isTransitioning) return;
         if (e.touches.length === 1 && isDragging) {
-          const dx = e.touches[0].clientX - prevX;
-          const dy = e.touches[0].clientY - prevY;
+          const dx = e.touches[0].clientX - prevX, dy = e.touches[0].clientY - prevY;
           dragDistance += Math.abs(dx) + Math.abs(dy);
-          camLon -= dx * 0.34;
-          camLat += dy * 0.34;
-          prevX = e.touches[0].clientX;
-          prevY = e.touches[0].clientY;
+          targetLon -= dx * 0.30;
+          targetLat += dy * 0.30;
+          prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
           lastTouchX = prevX; lastTouchY = prevY;
         } else if (e.touches.length === 2) {
           const dist = Math.hypot(
@@ -656,17 +841,171 @@
     }
 
     function adjustZoom(deltaFov) {
-      targetFov = Math.min(102, Math.max(26, targetFov + deltaFov));
+      targetFov = Math.min(98, Math.max(26, targetFov + deltaFov));
     }
 
-    function resetCameraView() {
-      camLon = 0; camLat = 0; targetFov = 75;
-      camera.fov = 75;
-      camera.updateProjectionMatrix();
+    function resetCameraPose() {
+      camLon = 0; camLat = 0; targetLon = 0; targetLat = 0;
+      targetFov = 72; camera.fov = 72; camera.updateProjectionMatrix();
+      camera.position.set(0, 0, 0);
+      camPosTarget.set(0, 0, 0);
     }
 
-    function escapeHtml(str) {
-      return String(str || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+    function shortestAngleDelta(current, target) {
+      return ((target - current + 180) % 360 + 360) % 360 - 180;
+    }
+
+    function cinematicRoomTransition(title, subtitle, buildNextRoomFn, preWalkDelayMs = 0) {
+      if (isTransitioning) return;
+      isTransitioning = true;
+      stopSpeech();
+
+      const veil = document.getElementById("transition-veil");
+      document.getElementById("veil-title").innerText = title || "";
+      document.getElementById("veil-subtitle").innerText = subtitle || "";
+
+      setTimeout(() => {
+        veil.classList.add("active");
+        setTimeout(() => {
+          resetCameraPose();
+          buildNextRoomFn();
+          setTimeout(() => {
+            veil.classList.remove("active");
+            setTimeout(() => { isTransitioning = false; }, 650);
+          }, 520);
+        }, 920);
+      }, preWalkDelayMs);
+    }
+
+    // ==================== בנאי שער ניאו-קלאסי מונומנטלי (5.4 מטר!) ====================
+    function buildMonumentalArchway({ title, subtitle, accentHex, x, z, onEnter }) {
+      const gateGroup = new THREE.Group();
+      gateGroup.position.set(x, -2.35, z);
+      gateGroup.lookAt(0, -2.35, 0);
+
+      const marbleMat = new THREE.MeshStandardMaterial({ map: marbleTex, color: 0xf7f2e7, roughness: 0.55, metalness: 0.05 });
+      const darkMarbleMat = new THREE.MeshStandardMaterial({ map: marbleTex, color: 0xd8cbb4, roughness: 0.6, metalness: 0.06 });
+      const goldMat = new THREE.MeshStandardMaterial({ color: 0xcfa45a, roughness: 0.28, metalness: 0.82 });
+      const accentColor = new THREE.Color(accentHex || "#c59d5f");
+      const accentGoldMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.32, metalness: 0.65 });
+      const doorMat = new THREE.MeshStandardMaterial({ map: doorWoodTex, roughness: 0.48, metalness: 0.15 });
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff4d6, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
+
+      const step1 = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.18, 1.35), darkMarbleMat);
+      step1.position.set(0, 0.09, 0.25);
+      const step2 = new THREE.Mesh(new THREE.BoxGeometry(3.85, 0.16, 0.95), marbleMat);
+      step2.position.set(0, 0.26, 0.12);
+      gateGroup.add(step1, step2);
+
+      [-1.55, 1.55].forEach(cx => {
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.42, 0.68), darkMarbleMat);
+        plinth.position.set(cx, 0.55, 0.15);
+        const baseRing = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.14, 24), goldMat);
+        baseRing.position.set(cx, 0.82, 0.15);
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 3.15, 24), marbleMat);
+        shaft.position.set(cx, 2.46, 0.15);
+        const capRing = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.23, 0.22, 24), goldMat);
+        capRing.position.set(cx, 4.14, 0.15);
+        const abacus = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.18, 0.72), marbleMat);
+        abacus.position.set(cx, 4.32, 0.15);
+        gateGroup.add(plinth, baseRing, shaft, capRing, abacus);
+      });
+
+      const outerArch = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.17, 16, 36, Math.PI), marbleMat);
+      outerArch.position.set(0, 3.35, 0.06);
+      const innerGoldArch = new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.06, 12, 36, Math.PI), goldMat);
+      innerGoldArch.position.set(0, 3.35, 0.12);
+      const keystone = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.44, 0.36), goldMat);
+      keystone.position.set(0, 4.68, 0.10);
+      gateGroup.add(outerArch, innerGoldArch, keystone);
+
+      const frieze = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.36, 0.76), marbleMat);
+      frieze.position.set(0, 4.62, 0.14);
+      const goldTrim = new THREE.Mesh(new THREE.BoxGeometry(4.24, 0.08, 0.84), accentGoldMat);
+      goldTrim.position.set(0, 4.82, 0.14);
+      const pedimentGeo = new THREE.ConeGeometry(2.35, 0.82, 4);
+      const pediment = new THREE.Mesh(pedimentGeo, marbleMat);
+      pediment.rotation.y = Math.PI / 4;
+      pediment.scale.set(1.32, 1, 0.24);
+      pediment.position.set(0, 5.24, 0.14);
+      gateGroup.add(frieze, goldTrim, pediment);
+
+      const glowMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.45, 3.85), glowMat);
+      glowMesh.position.set(0, 2.28, -0.14);
+      gateGroup.add(glowMesh);
+
+      const leftPivot = new THREE.Group();
+      leftPivot.position.set(-1.18, 2.15, 0.0);
+      const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(1.16, 3.65, 0.11), doorMat);
+      leftDoor.position.set(0.58, 0, 0);
+      const leftRing = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 10, 20), goldMat);
+      leftRing.position.set(0.98, -0.15, 0.08);
+      leftPivot.add(leftDoor, leftRing);
+
+      const rightPivot = new THREE.Group();
+      rightPivot.position.set(1.18, 2.15, 0.0);
+      const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(1.16, 3.65, 0.11), doorMat);
+      rightDoor.position.set(-0.58, 0, 0);
+      const rightRing = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.025, 10, 20), goldMat);
+      rightRing.position.set(-0.98, -0.15, 0.08);
+      rightPivot.add(rightDoor, rightRing);
+      gateGroup.add(leftPivot, rightPivot);
+
+      const plaqueTex = makeClassicalPlaqueTexture(title, subtitle, accentHex || "#c59d5f");
+      const plaqueMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.55, subtitle ? 0.98 : 0.64),
+        new THREE.MeshBasicMaterial({ map: plaqueTex, transparent: true, side: THREE.DoubleSide })
+      );
+      plaqueMesh.position.set(0, 5.25, 0.52);
+      gateGroup.add(plaqueMesh);
+
+      const doorAnim = { leftPivot, rightPivot, glowMesh, opening: false, progress: 0 };
+      animatedDoors.push(doorAnim);
+
+      const triggerOpen = () => {
+        if (doorAnim.opening || isTransitioning) return;
+        doorAnim.opening = true;
+
+        const gateAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(x, -z));
+        targetLon = camLon + shortestAngleDelta(camLon, gateAngleDeg);
+        targetLat = 4;
+
+        setTimeout(() => {
+          const dist = Math.hypot(x, z);
+          const walkRatio = Math.min(0.62, 4.2 / Math.max(1, dist));
+          camPosTarget.set(x * walkRatio, 0.1, z * walkRatio);
+          targetFov = 58;
+        }, 320);
+
+        onEnter();
+      };
+
+      [leftDoor, rightDoor, glowMesh, plaqueMesh, frieze, outerArch].forEach(m => {
+        m.userData.onClick = triggerOpen;
+        clickableObjects.push(m);
+      });
+
+      return gateGroup;
+    }
+
+    function enqueueImageFetch(taskFn) {
+      return new Promise((resolve, reject) => {
+        fetchQueue.push({ taskFn, resolve, reject });
+        processFetchQueue();
+      });
+    }
+
+    function processFetchQueue() {
+      if (activeFetches >= 2 || fetchQueue.length === 0) return;
+      const item = fetchQueue.shift();
+      activeFetches++;
+      item.taskFn()
+        .then(item.resolve)
+        .catch(item.reject)
+        .finally(() => {
+          activeFetches--;
+          processFetchQueue();
+        });
     }
 
     function loadImageSafe(url) {
@@ -674,7 +1013,7 @@
       if (imageCache[url]) return Promise.resolve(imageCache[url]);
       if (imageInFlight[url]) return imageInFlight[url];
 
-      const promise = (async () => {
+      const promise = enqueueImageFetch(async () => {
         let srcToLoad = url;
         if (url.includes("drive.google.com") || url.includes("googleusercontent.com")) {
           const match = url.match(/[-\w]{25,}/);
@@ -693,10 +1032,33 @@
           img.onerror = () => resolve(null);
           img.src = srcToLoad;
         });
-      })();
+      });
 
       imageInFlight[url] = promise;
       return promise;
+    }
+
+    function hydrateAdminImg(imgEl, url) {
+      if (!imgEl || !url) return;
+      loadImageSafe(url).then(loaded => {
+        if (loaded && imgEl) imgEl.src = loaded.src;
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+    }
+
+    function showToast(msg, type = "info") {
+      const box = document.getElementById("toast-container");
+      const el = document.createElement("div");
+      const colors = type === "error"
+        ? "bg-rose-900 text-white border-rose-400"
+        : (type === "success" ? "bg-[#2e1e12] text-[#faf7f0] border-[#c59d5f]" : "bg-[#1e1b18] text-[#faf7f0] border-[#c59d5f]");
+      el.className = `${colors} border px-5 py-2.5 rounded-2xl text-xs md:text-sm font-bold shadow-2xl transition-all duration-300`;
+      el.innerText = msg;
+      box.appendChild(el);
+      setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 350); }, 3400);
     }
 
     async function apiPost(payload) {
@@ -717,46 +1079,54 @@
         if (data && data.zones) {
           museumData = data;
           renderZonesNav();
+          if (data.settings && data.settings.museumName) {
+            document.getElementById("museum-brand-sub").innerText = data.settings.museumName;
+          }
 
           const warnEl = document.getElementById("api-version-warning");
-          if (data.apiVersion !== EXPECTED_API_VERSION) warnEl.classList.remove("hidden");
-          else warnEl.classList.add("hidden");
+          const badgeEl = document.getElementById("api-status-badge");
+          if (data.apiVersion !== EXPECTED_API_VERSION) {
+            warnEl.classList.remove("hidden");
+            badgeEl.innerText = `שרת ${data.apiVersion || "ישן"} ⚠️`;
+          } else {
+            warnEl.classList.add("hidden");
+            badgeEl.innerText = "שרת v3.0 ✓";
+          }
 
           if (pendingDeepLinkExhibit) {
-            const target = museumData.exhibits.find(e => e.id === pendingDeepLinkExhibit && e.status === "approved");
+            const target = museumData.exhibits.find(e => String(e.id).trim() === String(pendingDeepLinkExhibit).trim() && e.status === "approved");
             pendingDeepLinkExhibit = null;
             if (target) {
               activeZoneId = target.zoneId;
               enterExhibit360(target.id, true);
-              document.getElementById("loader").classList.add("hidden");
+              hideLoader();
               return;
             }
           }
 
-          if (currentView === "lobby") enterLobby(true);
-          else if (currentView !== "exhibit") enterZone(currentView, true);
+          if (!isTransitioning) {
+            if (currentView === "lobby") enterLobby(true);
+            else if (currentView !== "exhibit") enterZone(currentView, true);
+          }
 
           const hsOpen = !document.getElementById("hotspot-editor-modal").classList.contains("hidden");
           if (shouldRenderAdmin && currentUser && !hsOpen) {
-            renderAdminContent(currentAdminTab);
+            renderAdminDashboard();
           }
         }
       } catch (e) {
-        console.warn("Refresh error:", e);
+        console.warn("Refresh:", e);
       } finally {
-        document.getElementById("loader").classList.add("hidden");
+        hideLoader();
       }
     }
 
-    function transitionScene(callback) {
-      stopSpeech();
-      const container = document.getElementById("scene-container");
-      container.classList.add("scene-portal-dive");
-      setTimeout(() => {
-        resetCameraView();
-        callback();
-        setTimeout(() => container.classList.remove("scene-portal-dive"), 80);
-      }, 330);
+    function hideLoader() {
+      const l = document.getElementById("loader");
+      if (l && !l.classList.contains("hidden")) {
+        l.style.opacity = "0";
+        setTimeout(() => l.classList.add("hidden"), 550);
+      }
     }
 
     function toggleMainMenu() {
@@ -766,15 +1136,15 @@
     function renderZonesNav() {
       const list = document.getElementById("zones-nav-list");
       const activeZones = museumData.zones.filter(z => z.status === "approved");
-      list.innerHTML = `<button onclick="toggleMainMenu(); enterLobby();" class="w-full text-right px-3 py-1.5 rounded-xl text-xs font-bold ${currentView === 'lobby' ? 'bg-sky-100 text-sky-800' : 'hover:bg-slate-100'}">🏛️ חדר הכניסה הראשי</button>` +
+      list.innerHTML = `<button onclick="toggleMainMenu(); enterLobby();" class="w-full text-right px-3 py-2 rounded-xl text-xs font-bold ${currentView === 'lobby' ? 'bg-[#e9dec9] text-[#4a1c24]' : 'hover:bg-[#f1eadc]'}">🏛️ אולם הכניסה הראשי</button>` +
         activeZones.map(z => `
-          <button onclick="toggleMainMenu(); enterZone('${z.id}');" class="w-full text-right px-3 py-1.5 rounded-xl text-xs font-bold ${currentView === z.id ? 'bg-sky-100 text-sky-800' : 'hover:bg-slate-100'}">
+          <button onclick="toggleMainMenu(); enterZone('${z.id}');" class="w-full text-right px-3 py-2 rounded-xl text-xs font-bold ${currentView === z.id ? 'bg-[#e9dec9] text-[#4a1c24]' : 'hover:bg-[#f1eadc]'}">
             🚪 ${escapeHtml(z.name)}
           </button>
         `).join("");
 
       const select = document.getElementById("up-zone");
-      select.innerHTML = `<option value="">בחירה אוטומטית ע"י צוות המוזיאון</option>` +
+      select.innerHTML = `<option value="">בחירה אוטומטית ע"י אוצרי המוזיאון</option>` +
         activeZones.map(z => `<option value="${z.id}">${escapeHtml(z.name)}</option>`).join("");
     }
 
@@ -788,117 +1158,74 @@
       }
     }
 
-    // ==================== 1. חדר הכניסה הראשי + שערי פתיחה תלת-ממדיים ====================
-    function enterLobby(skipAnim = false) {
-      const render = () => {
+    // ==================== 1. אולם הכניסה הראשי ====================
+    function enterLobby(skipAnim = false, preWalkDelayMs = 0) {
+      const buildLobby = () => {
         currentView = "lobby";
         activeExhibit = null;
         renderZonesNav();
         document.getElementById("inside-exhibit-hud").classList.add("hidden");
         document.getElementById("active-hotspot-box").classList.add("hidden");
         floorMesh.visible = true;
-        document.getElementById("current-location-badge").innerText = "חדר הכניסה הראשי";
+        document.getElementById("current-location-badge").innerText = "אולם הכניסה הראשי";
         showRoomWelcome(museumData.settings ? museumData.settings.lobbyWelcome : "");
 
         setSkyFromCanvas(fallbackLobbyCanvas);
-
         const customLobby = museumData.settings && museumData.settings.lobbyImage;
-        const primaryUrl = customLobby || "lobby-360.jpg";
-        loadImageSafe(primaryUrl).then(img => {
-          if (img && currentView === "lobby") setSkyFromImage(img);
-          else if (customLobby) {
-            loadImageSafe("lobby-360.jpg").then(img2 => {
-              if (img2 && currentView === "lobby") setSkyFromImage(img2);
-            });
-          }
-        });
+        if (customLobby) {
+          loadImageSafe(customLobby).then(img => {
+            if (img && currentView === "lobby") setSkyFromImage(img);
+          });
+        } else {
+          loadImageSafe("lobby-360.jpg").then(img => {
+            if (img && currentView === "lobby") setSkyFromImage(img);
+          });
+        }
 
         clearRoomObjects();
 
         const activeZones = museumData.zones.filter(z => z.status === "approved");
-        const radius = 6.8;
+        const radius = activeZones.length > 4 ? 8.2 : 7.0;
 
         activeZones.forEach((zone, idx) => {
-          const angle = ((idx - (activeZones.length - 1) / 2) * 0.58);
+          const span = Math.min(Math.PI * 1.45, Math.max(0.75, (activeZones.length - 1) * 0.68));
+          const angle = activeZones.length === 1 ? 0 : (-span / 2) + (idx / (activeZones.length - 1)) * span;
           const x = Math.sin(angle) * radius;
           const z = -Math.cos(angle) * radius;
-          const colorHex = zone.themeColor || "#0ea5e9";
-          const colorNum = new THREE.Color(colorHex);
-          const count = museumData.exhibits.filter(e => e.zoneId === zone.id && e.status === "approved").length;
+          const count = museumData.exhibits.filter(e => String(e.zoneId).trim() === String(zone.id).trim() && e.status === "approved").length;
 
-          const gateGroup = new THREE.Group();
-          gateGroup.position.set(x, -0.35, z);
-          gateGroup.lookAt(0, -0.35, 0);
-
-          const pillarMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
-          const accentMat = new THREE.MeshBasicMaterial({ color: colorNum });
-          const glowMat = new THREE.MeshBasicMaterial({ color: colorNum, transparent: true, opacity: 0.42, side: THREE.DoubleSide });
-          const doorMat = new THREE.MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.94 });
-
-          const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.3, 0.28), pillarMat);
-          leftPillar.position.set(-1.18, 0, 0);
-          const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.3, 0.28), pillarMat);
-          rightPillar.position.set(1.18, 0, 0);
-          const topBeam = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.24, 0.34), accentMat);
-          topBeam.position.set(0, 1.72, 0);
-          const portalGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.14, 3.15), glowMat);
-          portalGlow.position.set(0, 0, -0.06);
-
-          const leftPivot = new THREE.Group();
-          leftPivot.position.set(-1.07, 0, 0.04);
-          const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(1.04, 3.1, 0.07), doorMat);
-          leftDoor.position.set(0.52, 0, 0);
-          const leftHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.09), accentMat);
-          leftHandle.position.set(0.92, 0, 0.03);
-          leftPivot.add(leftDoor, leftHandle);
-
-          const rightPivot = new THREE.Group();
-          rightPivot.position.set(1.07, 0, 0.04);
-          const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(1.04, 3.1, 0.07), doorMat);
-          rightDoor.position.set(-0.52, 0, 0);
-          const rightHandle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.09), accentMat);
-          rightHandle.position.set(-0.92, 0, 0.03);
-          rightPivot.add(rightDoor, rightHandle);
-
-          const signTex = makeHebrewSignTexture(zone.name, `🚪 לחץ לפתיחת השער (${count} יצירות)`, "#0f172a", colorHex, "#ffffff");
-          const signMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(2.9, 0.82),
-            new THREE.MeshBasicMaterial({ map: signTex, transparent: true, side: THREE.DoubleSide })
-          );
-          signMesh.position.set(0, 2.32, 0.08);
-
-          gateGroup.add(leftPillar, rightPillar, topBeam, portalGlow, leftPivot, rightPivot, signMesh);
-          roomGroup.add(gateGroup);
-
-          const doorAnim = { leftPivot, rightPivot, opening: false, progress: 0 };
-          animatedDoors.push(doorAnim);
-
-          const onGateClick = () => {
-            if (doorAnim.opening) return;
-            doorAnim.opening = true;
-            targetFov = 46;
-            setTimeout(() => enterZone(zone.id), 460);
-          };
-
-          [leftDoor, rightDoor, portalGlow, signMesh, topBeam].forEach(m => {
-            m.userData.onClick = onGateClick;
-            clickableObjects.push(m);
+          const arch = buildMonumentalArchway({
+            title: zone.name,
+            subtitle: `✦ כניסה לאולם • ${count} יצירות ✦`,
+            accentHex: zone.themeColor || "#c59d5f",
+            x, z,
+            onEnter: () => enterZone(zone.id, false, 1150)
           });
+          roomGroup.add(arch);
         });
       };
 
-      if (skipAnim) render();
-      else transitionScene(render);
+      if (skipAnim) {
+        resetCameraPose();
+        buildLobby();
+      } else {
+        cinematicRoomTransition(
+          "אולם הכניסה הראשי",
+          (museumData.settings && museumData.settings.lobbyWelcome) || "שערי אולמות התצוגה של המוזיאון הפיזיטלי",
+          buildLobby,
+          preWalkDelayMs
+        );
+      }
     }
 
-    // ==================== 2. אולם גלריה (אזור) ====================
-    function enterZone(zoneId, skipAnim = false) {
-      const zone = museumData.zones.find(z => z.id === zoneId);
+    // ==================== 2. אולם תצוגה (עם רקע 360 אישי ומסגרות מוזיאון מוזהבות) ====================
+    function enterZone(zoneId, skipAnim = false, preWalkDelayMs = 0) {
+      const zone = museumData.zones.find(z => String(z.id).trim() === String(zoneId).trim());
       if (!zone) return enterLobby(skipAnim);
 
-      const render = () => {
-        currentView = zoneId;
-        activeZoneId = zoneId;
+      const buildZone = () => {
+        currentView = zone.id;
+        activeZoneId = zone.id;
         activeExhibit = null;
         renderZonesNav();
         document.getElementById("inside-exhibit-hud").classList.add("hidden");
@@ -906,69 +1233,102 @@
         floorMesh.visible = true;
         document.getElementById("current-location-badge").innerText = zone.name;
         showRoomWelcome(zone.welcomeText || "");
+
         setSkyFromCanvas(fallbackGalleryCanvas);
+        if (zone.bgImageUrl) {
+          loadImageSafe(zone.bgImageUrl).then(img => {
+            if (img && currentView === zone.id) setSkyFromImage(img);
+          });
+        }
+
         clearRoomObjects();
+        const radius = 7.6;
 
-        const radius = 7.2;
+        const returnArch = buildMonumentalArchway({
+          title: "אולם הכניסה הראשי",
+          subtitle: "✦ חזרה לרוטונדה המרכזית ✦",
+          accentHex: "#c59d5f",
+          x: 0, z: radius + 0.6,
+          onEnter: () => enterLobby(false, 1150)
+        });
+        roomGroup.add(returnArch);
 
-        const backTex = makeHebrewSignTexture("🏛️ חזרה לחדר הכניסה", "", "#0f172a", "#38bdf8", "#ffffff");
-        const backMesh = new THREE.Mesh(
-          new THREE.PlaneGeometry(3.0, 0.78),
-          new THREE.MeshBasicMaterial({ map: backTex, transparent: true, side: THREE.DoubleSide })
+        const zoneExhibits = museumData.exhibits.filter(
+          e => String(e.zoneId).trim() === String(zone.id).trim() && e.status === "approved"
         );
-        backMesh.position.set(0, 0.2, radius);
-        backMesh.lookAt(0, 0.2, 0);
-        backMesh.userData.onClick = () => enterLobby();
-        roomGroup.add(backMesh);
-        clickableObjects.push(backMesh);
 
-        const zoneExhibits = museumData.exhibits.filter(e => e.zoneId === zoneId && e.status === "approved");
         if (zoneExhibits.length === 0) {
-          const emptyTex = makeHebrewSignTexture("האגף מוכן ליצירות הראשונות!", "העלו תוצרים דרך התפריט ☰", "#ffffff", "#0ea5e9", "#0f172a");
+          const emptyTex = makeClassicalPlaqueTexture("האולם ערוך ליצירות הראשונות", "ניתן להעלות תוצרים דרך התפריט ☰", "#c59d5f");
           const emptyMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(4.6, 1.25),
+            new THREE.PlaneGeometry(4.8, 1.35),
             new THREE.MeshBasicMaterial({ map: emptyTex, transparent: true, side: THREE.DoubleSide })
           );
-          emptyMesh.position.set(0, 0.2, -5.8);
+          emptyMesh.position.set(0, 0.2, -6.2);
           roomGroup.add(emptyMesh);
           return;
         }
 
-        const accentColor = new THREE.Color(zone.themeColor || "#0ea5e9");
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xcfa45a, roughness: 0.28, metalness: 0.82 });
+        const innerGoldMat = new THREE.MeshStandardMaterial({ color: 0x9b7433, roughness: 0.35, metalness: 0.72 });
+        const matBoardMat = new THREE.MeshStandardMaterial({ color: 0xfaf6ec, roughness: 0.85, metalness: 0.02 });
+        const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff3d1 });
+
+        const galleryR = zoneExhibits.length > 6 ? 8.8 : 7.5;
+        const maxSpan = Math.min(Math.PI * 1.55, Math.max(0.7, (zoneExhibits.length - 1) * 0.56));
+
         zoneExhibits.forEach((ex, idx) => {
-          const span = Math.min(Math.PI * 1.45, Math.max(0.65, (zoneExhibits.length - 1) * 0.52));
-          const angle = zoneExhibits.length === 1 ? 0 : (-span / 2) + (idx / (zoneExhibits.length - 1)) * span;
-          const x = Math.sin(angle) * radius;
-          const z = -Math.cos(angle) * radius;
+          const angle = zoneExhibits.length === 1 ? 0 : (-maxSpan / 2) + (idx / (zoneExhibits.length - 1)) * maxSpan;
+          const x = Math.sin(angle) * galleryR;
+          const z = -Math.cos(angle) * galleryR;
           const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
 
           const frameGroup = new THREE.Group();
-          frameGroup.position.set(x, 0.25, z);
-          frameGroup.lookAt(0, 0.25, 0);
+          frameGroup.position.set(x, 0.3, z);
+          frameGroup.lookAt(0, 0.3, 0);
 
-          const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(3.26, 2.46, 0.1), new THREE.MeshBasicMaterial({ color: accentColor }));
-          const innerFrame = new THREE.Mesh(new THREE.BoxGeometry(3.12, 2.32, 0.12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-          const imgPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.88, 2.08), new THREE.MeshBasicMaterial({ color: 0xe2e8f0 }));
-          imgPlane.position.z = 0.08;
+          const outerGold = new THREE.Mesh(new THREE.BoxGeometry(3.48, 2.66, 0.14), goldMat);
+          const recessGold = new THREE.Mesh(new THREE.BoxGeometry(3.24, 2.42, 0.16), innerGoldMat);
+          const passePartout = new THREE.Mesh(new THREE.BoxGeometry(3.08, 2.26, 0.18), matBoardMat);
+          const imgPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.74, 1.94), new THREE.MeshBasicMaterial({ color: 0xe7decb }));
+          imgPlane.position.z = 0.105;
 
-          const plaqueTex = makeHebrewSignTexture(ex.title, `${ex.studentName} (${ex.studentClass}) • 📍 ${hsCount} נקודות`, "#0f172a", "#38bdf8", "#ffffff");
+          const lampArm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 10), goldMat);
+          lampArm.rotation.x = Math.PI / 2;
+          lampArm.position.set(0, 1.58, 0.22);
+          const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.15, 14), goldMat);
+          lampShade.rotation.z = Math.PI / 2;
+          lampShade.position.set(0, 1.58, 0.48);
+          const lampBulb = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.09), lampGlowMat);
+          lampBulb.rotation.x = Math.PI / 2;
+          lampBulb.position.set(0, 1.49, 0.48);
+
+          const plaqueTex = makeClassicalPlaqueTexture(ex.title, `${ex.studentName} (${ex.studentClass}) • 📍 ${hsCount} נקודות`, zone.themeColor || "#c59d5f");
           const plaqueMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(3.2, 0.85),
+            new THREE.PlaneGeometry(3.3, 0.9),
             new THREE.MeshBasicMaterial({ map: plaqueTex, transparent: true, side: THREE.DoubleSide })
           );
-          plaqueMesh.position.set(0, -1.72, 0.06);
+          plaqueMesh.position.set(0, -1.9, 0.08);
 
-          frameGroup.add(outerFrame, innerFrame, imgPlane, plaqueMesh);
+          frameGroup.add(outerGold, recessGold, passePartout, imgPlane, lampArm, lampShade, lampBulb, plaqueMesh);
           roomGroup.add(frameGroup);
 
-          const onExhibitClick = () => enterExhibit360(ex.id);
-          [imgPlane, plaqueMesh, innerFrame].forEach(m => {
+          const onExhibitClick = () => {
+            if (isTransitioning) return;
+            const targetAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(x, -z));
+            targetLon = camLon + shortestAngleDelta(camLon, targetAngleDeg);
+            targetLat = 2;
+            camPosTarget.set(x * 0.48, 0.15, z * 0.48);
+            targetFov = 54;
+            enterExhibit360(ex.id, false, 650);
+          };
+
+          [imgPlane, plaqueMesh, passePartout, outerGold].forEach(m => {
             m.userData.onClick = onExhibitClick;
             clickableObjects.push(m);
           });
 
           loadImageSafe(ex.imageUrl).then(img => {
-            if (img && currentView === zoneId) {
+            if (img && currentView === zone.id) {
               const tex = new THREE.Texture(img);
               tex.encoding = THREE.sRGBEncoding;
               tex.minFilter = THREE.LinearFilter;
@@ -981,19 +1341,23 @@
         });
       };
 
-      if (skipAnim) render();
-      else transitionScene(render);
+      if (skipAnim) {
+        resetCameraPose();
+        buildZone();
+      } else {
+        cinematicRoomTransition(zone.name, zone.welcomeText || "גלריית יצירות התלמידים", buildZone, preWalkDelayMs);
+      }
     }
 
-    // ==================== 3. כניסה לתוך יצירה (IMAX קעור או 360° מלא) ====================
-    function enterExhibit360(exhibitId, skipAnim = false) {
-      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+    // ==================== 3. כניסה לתוך יצירה ====================
+    function enterExhibit360(exhibitId, skipAnim = false, preWalkDelayMs = 0) {
+      const ex = museumData.exhibits.find(e => String(e.id).trim() === String(exhibitId).trim());
       if (!ex) return;
 
-      const render = () => {
+      const buildExhibit = () => {
         currentView = "exhibit";
         activeExhibit = ex;
-        document.getElementById("current-location-badge").innerText = `🌐 ${ex.title} • ${ex.studentName}`;
+        document.getElementById("current-location-badge").innerText = `${ex.title} • ${ex.studentName}`;
         document.getElementById("inside-exhibit-hud").classList.remove("hidden");
         document.getElementById("active-hotspot-box").classList.add("hidden");
         document.getElementById("room-welcome-banner").classList.add("hidden");
@@ -1010,8 +1374,12 @@
         });
       };
 
-      if (skipAnim) render();
-      else transitionScene(render);
+      if (skipAnim) {
+        resetCameraPose();
+        buildExhibit();
+      } else {
+        cinematicRoomTransition(ex.title, `מאת ${ex.studentName} • כיתה ${ex.studentClass}`, buildExhibit, preWalkDelayMs);
+      }
     }
 
     function toggleExhibitViewMode() {
@@ -1030,7 +1398,6 @@
       if (exhibitViewMode === "sphere") {
         toggleBtn.innerText = "🎬 מסך קעור";
         setSkyFromImage(img);
-
         const radius = 8;
         hotspots.forEach((hs, idx) => {
           const lon = ((hs.x / 100) - 0.5) * Math.PI * 2;
@@ -1042,13 +1409,19 @@
         });
       } else {
         toggleBtn.innerText = "🌐 כיפת 360°";
+        const zone = museumData.zones.find(z => String(z.id).trim() === String(activeExhibit.zoneId).trim());
         setSkyFromCanvas(fallbackGalleryCanvas);
+        if (zone && zone.bgImageUrl) {
+          loadImageSafe(zone.bgImageUrl).then(zImg => {
+            if (zImg && currentView === "exhibit" && exhibitViewMode === "curved") setSkyFromImage(zImg);
+          });
+        }
 
         const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
         const R = 6.2;
-        const thetaLength = Math.min(Math.PI * 0.9, Math.max(Math.PI * 0.48, aspect * 0.74));
+        const thetaLength = Math.min(Math.PI * 0.92, Math.max(Math.PI * 0.50, aspect * 0.74));
         const arcWidth = R * thetaLength;
-        const H = Math.min(6.4, Math.max(3.4, arcWidth / aspect));
+        const H = Math.min(6.4, Math.max(3.5, arcWidth / aspect));
         const thetaStart = Math.PI - thetaLength / 2;
 
         const geo = new THREE.CylinderGeometry(R, R, H, 56, 1, true, thetaStart, thetaLength);
@@ -1062,6 +1435,16 @@
 
         const screenMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide }));
         roomGroup.add(screenMesh);
+
+        // מסגרת זהב קעורה מיושרת גאומטרית מעל ומתחת ליצירה
+        const trimMat = new THREE.MeshStandardMaterial({ color: 0xcfa45a, roughness: 0.3, metalness: 0.8 });
+        [H / 2 + 0.06, -H / 2 - 0.06].forEach(ty => {
+          const arcTrim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.055, 10, 48, thetaLength), trimMat);
+          arcTrim.rotation.x = Math.PI / 2;
+          arcTrim.rotation.z = -Math.PI / 2 - thetaLength / 2;
+          arcTrim.position.y = ty;
+          roomGroup.add(arcTrim);
+        });
 
         const pinR = R - 0.25;
         hotspots.forEach((hs, idx) => {
@@ -1077,7 +1460,7 @@
     function spawnHotspotPin(x, y, z, idx, title) {
       const tex = makeHotspotPinTexture(idx + 1, title);
       const pinMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.45, 0.70),
+        new THREE.PlaneGeometry(1.5, 0.72),
         new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
       );
       pinMesh.position.set(x, y, z);
@@ -1112,7 +1495,7 @@
       const fileId = hs.audioFileId || (hs.audioUrl && (hs.audioUrl.match(/[-\w]{25,}/) || [])[0]);
       if (fileId) {
         audioDiv.classList.remove("hidden");
-        audioDiv.innerHTML = `<div class="text-xs text-slate-500 font-bold">⏳ טוען הקלטה קולית...</div>`;
+        audioDiv.innerHTML = `<div class="text-xs text-[#78716c] font-bold">⏳ טוען הקלטה קולית...</div>`;
         try {
           let dataUrl = audioCache[fileId];
           if (!dataUrl) {
@@ -1132,10 +1515,10 @@
             audioDiv.appendChild(audio);
             audio.play().catch(() => {});
           } else {
-            audioDiv.innerHTML = `<div class="text-xs text-rose-600">לא ניתן לטעון את ההקלטה</div>`;
+            audioDiv.innerHTML = `<div class="text-xs text-rose-700">לא ניתן לטעון את ההקלטה</div>`;
           }
         } catch (e) {
-          audioDiv.innerHTML = `<div class="text-xs text-rose-600">שגיאה בטעינת השמע</div>`;
+          audioDiv.innerHTML = `<div class="text-xs text-rose-700">שגיאה בטעינת השמע</div>`;
         }
       } else {
         audioDiv.classList.add("hidden");
@@ -1153,7 +1536,7 @@
       if (!("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "he-IL"; u.rate = 0.95;
+      u.lang = "he-IL"; u.rate = 0.94;
       window.speechSynthesis.speak(u);
     }
     function speakCurrentHotspot() {
@@ -1167,7 +1550,7 @@
       if (!activeExhibit) return;
       document.getElementById("info-class").innerText = `כיתה ${activeExhibit.studentClass}`;
       document.getElementById("info-title").innerText = activeExhibit.title;
-      document.getElementById("info-student").innerText = `יוצר/ת: ${activeExhibit.studentName}`;
+      document.getElementById("info-student").innerText = `מאת: ${activeExhibit.studentName}`;
       document.getElementById("info-summary").innerText = activeExhibit.summary;
       openModal("exhibit-info-modal");
     }
@@ -1184,11 +1567,12 @@
     async function sendReaction(type) {
       if (!activeExhibit) return;
       const key = `reacted_${activeExhibit.id}_${type}`;
-      if (localStorage.getItem(key)) return;
+      if (localStorage.getItem(key)) return showToast("כבר הענקת מדבקת פרגון זו ליצירה");
       localStorage.setItem(key, "1");
 
       const cntEl = document.getElementById(`react-cnt-${type}`);
       cntEl.innerText = Number(cntEl.innerText) + 1;
+      showToast("✦ תודה על הפרגון!", "success");
       const res = await apiPost({ action: "add_reaction", id: activeExhibit.id, reactionType: type });
       if (res && res.success && res.reactions) {
         activeExhibit.reactionsJson = JSON.stringify(res.reactions);
@@ -1196,7 +1580,31 @@
       }
     }
 
-    // ==================== 6. העלאת תוצר תלמיד ====================
+    // ==================== 6. דחיסת תמונות אחידה ====================
+    function compressImageFile(file, maxWidth = 1500, quality = 0.78) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("שגיאה בקריאת הקובץ"));
+        reader.onload = ev => {
+          const img = new Image();
+          img.onerror = () => reject(new Error("קובץ תמונה לא תקין"));
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let w = img.width, h = img.height;
+            if (w > maxWidth || h > maxWidth) {
+              if (w >= h) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+              else { w = Math.round(w * maxWidth / h); h = maxWidth; }
+            }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            resolve({ dataUrl: canvas.toDataURL("image/jpeg", quality), img });
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     function requestStudentUpload() {
       document.getElementById("upload-pin-input").value = "";
       openModal("upload-gate-modal");
@@ -1208,72 +1616,52 @@
       btn.disabled = true; btn.innerText = "בודק...";
       try {
         const res = await apiPost({ action: "verify_upload_pin", pin });
-        if (!res || !res.success) return alert("❌ קוד שגוי! נסו שוב.");
+        if (!res || !res.success) return showToast("❌ קוד כיתה שגוי", "error");
         verifiedUploadPin = pin;
         closeModal("upload-gate-modal");
         openModal("upload-modal");
       } catch (e) {
-        alert("שגיאת תקשורת מול השרת.");
+        showToast("שגיאת תקשורת מול השרת", "error");
       } finally {
         btn.disabled = false; btn.innerText = "המשך להעלאה";
       }
     }
 
-    function submitStudentWork(e) {
+    async function submitStudentWork(e) {
       e.preventDefault();
       const file = document.getElementById("up-file").files[0];
       if (!file) return;
       const btn = document.getElementById("up-submit-btn");
       btn.disabled = true; btn.innerText = "⏳ מעבד ושומר בדרייב...";
-
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement("canvas");
-            const MAX_DIM = 1400;
-            let w = img.width, h = img.height;
-            if (w > MAX_DIM || h > MAX_DIM) {
-              if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
-              else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
-            }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-            const compressedData = canvas.toDataURL("image/jpeg", 0.82);
-
-            const res = await apiPost({
-              action: "upload_exhibit",
-              pin: verifiedUploadPin,
-              studentName: document.getElementById("up-name").value.trim(),
-              studentClass: document.getElementById("up-class").value.trim(),
-              title: document.getElementById("up-title").value.trim(),
-              preferredZoneId: document.getElementById("up-zone").value,
-              summary: document.getElementById("up-summary").value.trim(),
-              imageData: compressedData
-            });
-
-            if (!res || !res.success) return alert("שגיאה בשליחה: " + (res && (res.message || res.error) ? (res.message || res.error) : "נסה שוב"));
-            alert("🎉 היצירה נשלחה בהצלחה וממתינה לאישור מנהלי המוזיאון!");
-            document.getElementById("upload-form").reset();
-            closeModal("upload-modal");
-            refreshData(false);
-          } catch (err) {
-            alert("שגיאה בהעלאת התמונה: " + err.message);
-          } finally {
-            btn.disabled = false; btn.innerText = "🚀 שלח לאישור מנהלי המוזיאון";
-          }
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { dataUrl } = await compressImageFile(file, 1400, 0.80);
+        const res = await apiPost({
+          action: "upload_exhibit",
+          pin: verifiedUploadPin,
+          studentName: document.getElementById("up-name").value.trim(),
+          studentClass: document.getElementById("up-class").value.trim(),
+          title: document.getElementById("up-title").value.trim(),
+          preferredZoneId: document.getElementById("up-zone").value,
+          summary: document.getElementById("up-summary").value.trim(),
+          imageData: dataUrl
+        });
+        if (!res || !res.success) return showToast("שגיאה בשליחה: " + (res && (res.message || res.error) ? (res.message || res.error) : ""), "error");
+        showToast("🎉 היצירה הוגשה בהצלחה וממתינה לאישור אוצרי המוזיאון!", "success");
+        document.getElementById("upload-form").reset();
+        closeModal("upload-modal");
+        refreshData(false);
+      } catch (err) {
+        showToast("שגיאה בהעלאת התמונה: " + err.message, "error");
+      } finally {
+        btn.disabled = false; btn.innerText = "✦ שלח לאישור אוצרי המוזיאון";
+      }
     }
 
-    // ==================== 7. ניהול מוזיאון (ללא קפיצת לשוניות!) ====================
+    // ==================== 7. לשכת האוצרות והניהול ====================
     function handleAdminClick() {
       if (currentUser) {
         openModal("admin-modal");
-        switchAdminTab(currentAdminTab);
+        renderAdminDashboard();
       } else {
         openModal("login-modal");
       }
@@ -1285,7 +1673,7 @@
       btn.disabled = true; btn.innerText = "מאמת...";
       try {
         const res = await apiPost({ action: "login", code });
-        if (!res || !res.success) return alert("❌ קוד גישה שגוי");
+        if (!res || !res.success) return showToast("❌ קוד גישה שגוי", "error");
 
         currentUser = res.user;
         currentAuthCode = code;
@@ -1293,43 +1681,80 @@
         document.getElementById("login-code-input").value = "";
         closeModal("login-modal");
         document.getElementById("admin-btn-text").innerText = currentUser.name;
-        document.getElementById("admin-role-label").innerText = `מחובר: ${currentUser.name} (${translateRole(currentUser.role)})`;
+        document.getElementById("admin-role-label").innerText = `${currentUser.name} • ${translateRole(currentUser.role)}`;
         if (currentUser.role === "super_admin") document.getElementById("tab-staff-btn").classList.remove("hidden");
         else document.getElementById("tab-staff-btn").classList.add("hidden");
         openModal("admin-modal");
-        switchAdminTab("pending");
+        renderAdminDashboard();
       } catch (e) {
-        alert("שגיאה בחיבור לשרת");
+        showToast("שגיאת חיבור לשרת", "error");
       } finally {
-        btn.disabled = false; btn.innerText = "כניסה למערכת";
+        btn.disabled = false; btn.innerText = "כניסה ללשכת הניהול";
       }
     }
 
     function logoutAdmin() {
       currentUser = null;
       currentAuthCode = "";
-      document.getElementById("admin-btn-text").innerText = "ניהול מוזיאון";
+      document.getElementById("admin-btn-text").innerText = "לשכת האוצרות והניהול";
       closeModal("admin-modal");
+      showToast("התנתקת ממערכת הניהול");
     }
 
     function translateRole(role) {
       if (role === "super_admin") return "מנהל כללי";
-      if (role === "teacher") return "מורה אחראי/ת";
-      return "תלמיד/ה מנהל/ת מוזיאון";
+      if (role === "teacher") return "מורה אוצר/ת";
+      return "תלמיד/ה אוצר/ת מוזיאון";
     }
 
     function switchAdminTab(tab) {
       currentAdminTab = tab;
+      renderAdminDashboard();
+    }
+
+    function renderAdminDashboard() {
+      if (!currentUser) return;
+
       document.querySelectorAll(".admin-tab").forEach(b => {
-        b.classList.remove("bg-white", "text-indigo-600", "border-t", "border-x", "border-slate-200");
-        b.classList.add("text-slate-500");
+        if (b.dataset.tab === currentAdminTab) {
+          b.className = "admin-tab px-3.5 py-2 rounded-t-xl whitespace-nowrap bg-[#faf7f0] text-[#4a1c24] border-t border-x border-[#cbb58d]";
+        } else {
+          b.className = "admin-tab px-3.5 py-2 rounded-t-xl whitespace-nowrap text-[#78716c] hover:text-[#1e1b18]";
+        }
+        if (b.id === "tab-staff-btn" && currentUser.role !== "super_admin") b.classList.add("hidden");
       });
-      const activeBtn = document.querySelector(`.admin-tab[data-tab="${tab}"]`);
-      if (activeBtn) {
-        activeBtn.classList.add("bg-white", "text-indigo-600", "border-t", "border-x", "border-slate-200");
-        activeBtn.classList.remove("text-slate-500");
-      }
-      renderAdminContent(tab);
+
+      const pendingCount = museumData.exhibits.filter(e => e.status === "pending").length;
+      const approvedCount = museumData.exhibits.filter(e => e.status === "approved").length;
+      const zonesCount = museumData.zones.filter(z => z.status === "approved").length;
+      let totalReactions = 0;
+      museumData.exhibits.forEach(e => {
+        try {
+          const r = JSON.parse(e.reactionsJson || "{}");
+          totalReactions += Number(r.learned || 0) + Number(r.creative || 0) + Number(r.bravo || 0);
+        } catch (err) {}
+      });
+
+      document.getElementById("admin-kpi-bar").innerHTML = `
+        <div class="bg-[#faf7f0] rounded-xl p-2 border border-[#d6c7ad]/60">
+          <div class="text-lg font-black text-amber-700">${pendingCount}</div>
+          <div class="text-[10px] font-bold text-[#78716c]">ממתינים לאישור</div>
+        </div>
+        <div class="bg-[#faf7f0] rounded-xl p-2 border border-[#d6c7ad]/60">
+          <div class="text-lg font-black text-emerald-700">${approvedCount}</div>
+          <div class="text-[10px] font-bold text-[#78716c]">יצירות בתצוגה</div>
+        </div>
+        <div class="bg-[#faf7f0] rounded-xl p-2 border border-[#d6c7ad]/60">
+          <div class="text-lg font-black text-[#4a1c24]">${zonesCount}</div>
+          <div class="text-[10px] font-bold text-[#78716c]">אולמות פעילים</div>
+        </div>
+        <div class="bg-[#faf7f0] rounded-xl p-2 border border-[#d6c7ad]/60">
+          <div class="text-lg font-black text-[#9c7435]">${totalReactions}</div>
+          <div class="text-[10px] font-bold text-[#78716c]">מדבקות פרגון</div>
+        </div>
+      `;
+
+      renderAdminContent(currentAdminTab);
     }
 
     function renderAdminContent(tab) {
@@ -1340,152 +1765,376 @@
       if (tab === "pending") {
         const pending = museumData.exhibits.filter(e => e.status === "pending");
         const delPending = museumData.exhibits.filter(e => e.status === "delete_pending");
-        let html = `<h3 class="font-bold text-slate-700">מוצגים חדשים הממתינים לאישור (${pending.length})</h3>`;
-        if (pending.length === 0) html += `<p class="text-sm text-slate-400">אין כרגע מוצגים הממתינים לאישור.</p>`;
+        let html = `<h3 class="font-classic text-xl font-black text-[#1e1b18]">יצירות הממתינות לאישור ומיקום באולם (${pending.length})</h3>`;
+        if (pending.length === 0) html += `<div class="bg-white rounded-2xl p-6 text-center text-sm text-[#78716c] border border-[#e5dccb]">אין כרגע יצירות הממתינות לאישור.</div>`;
 
         pending.forEach(ex => {
+          const defaultZone = activeZones.find(z => String(z.id).trim() === String(ex.zoneId).trim()) ? ex.zoneId : (activeZones[0] ? activeZones[0].id : "");
           html += `
-            <div class="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center bg-slate-50">
-              <img src="${ex.imageUrl}" class="w-24 h-24 object-cover rounded-xl shadow bg-slate-200">
-              <div class="flex-1">
-                <h4 class="font-bold text-slate-800">${escapeHtml(ex.title)} <span class="text-xs text-slate-500">(${escapeHtml(ex.studentName)} - ${escapeHtml(ex.studentClass)})</span></h4>
-                <p class="text-xs text-slate-600 mt-1">${escapeHtml(ex.summary)}</p>
+            <div class="bg-white border border-[#d6c7ad] rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center shadow-sm">
+              <img id="thumb-${ex.id}" src="${ex.imageUrl}" class="w-28 h-24 object-cover rounded-xl shadow bg-[#f1eadc]">
+              <div class="flex-1 w-full">
+                <div class="flex flex-wrap justify-between gap-2">
+                  <h4 class="font-classic text-lg font-black text-[#1e1b18]">${escapeHtml(ex.title)}</h4>
+                  <span class="text-xs font-bold bg-[#f1eadc] text-[#4a1c24] px-2.5 py-0.5 rounded-full">${escapeHtml(ex.studentName)} • ${escapeHtml(ex.studentClass)}</span>
+                </div>
+                <p class="text-xs text-[#57534e] mt-1">${escapeHtml(ex.summary)}</p>
                 <div class="mt-3 flex flex-wrap gap-2 items-center">
-                  <select id="assign-zone-${ex.id}" class="border rounded-lg px-2 py-1.5 text-xs bg-white">
-                    ${activeZones.map(z => `<option value="${z.id}" ${z.id === ex.zoneId ? 'selected' : ''}>${escapeHtml(z.name)}</option>`).join("")}
+                  <select id="assign-zone-${ex.id}" class="border border-[#cbb58d] rounded-xl px-2.5 py-1.5 text-xs bg-[#faf7f0] font-bold">
+                    ${activeZones.map(z => `<option value="${z.id}" ${String(z.id) === String(defaultZone) ? 'selected' : ''}>אולם: ${escapeHtml(z.name)}</option>`).join("")}
                   </select>
-                  <button onclick="approveExhibit('${ex.id}')" class="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✅ אשר והצב</button>
-                  <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📍 נקודות חמות</button>
-                  <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">🗑️ מחק</button>
+                  <button onclick="approveExhibit('${ex.id}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl">✅ אשר והצב באולם</button>
+                  <button onclick="openHotspotEditor('${ex.id}')" class="btn-gold text-xs font-bold px-3 py-1.5 rounded-xl">📍 נקודות חמות</button>
+                  <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-xl">🗑️ מחק</button>
                 </div>
               </div>
             </div>`;
         });
 
         if (isTeacherOrSuper && delPending.length > 0) {
-          html += `<h3 class="font-bold text-rose-600 mt-6">⚠️ בקשות מחיקה מתלמידים מנהלים (${delPending.length})</h3>`;
+          html += `<h3 class="font-classic text-lg font-black text-rose-700 mt-6">⚠️ בקשות מחיקה מתלמידים אוצרים (${delPending.length})</h3>`;
           delPending.forEach(ex => {
             html += `
               <div class="border border-rose-200 bg-rose-50 rounded-2xl p-3 flex justify-between items-center">
                 <span class="text-sm font-bold">${escapeHtml(ex.title)} (${escapeHtml(ex.studentName)})</span>
                 <div class="flex gap-2">
-                  <button onclick="confirmDeleteExhibit('${ex.id}')" class="bg-rose-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold">אשר מחיקה</button>
-                  <button onclick="restoreExhibit('${ex.id}')" class="bg-white border text-xs px-3 py-1.5 rounded-lg font-bold">שחזר</button>
+                  <button onclick="confirmDeleteExhibit('${ex.id}')" class="bg-rose-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold">אשר מחיקה</button>
+                  <button onclick="restoreExhibit('${ex.id}')" class="bg-white border text-xs px-3 py-1.5 rounded-xl font-bold">שחזר לתצוגה</button>
                 </div>
               </div>`;
           });
         }
         box.innerHTML = html;
+        pending.forEach(ex => hydrateAdminImg(document.getElementById(`thumb-${ex.id}`), ex.imageUrl));
       }
 
       if (tab === "approved") {
-        const approved = museumData.exhibits.filter(e => e.status === "approved");
-        box.innerHTML = `<h3 class="font-bold text-slate-700">מוצגים פעילים במוזיאון (${approved.length})</h3>` +
-          approved.map(ex => `
-            <div class="border border-slate-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
+        const allApproved = museumData.exhibits.filter(e => e.status === "approved");
+        const filtered = approvedFilterZone === "all"
+          ? allApproved
+          : allApproved.filter(e => String(e.zoneId).trim() === String(approvedFilterZone).trim());
+
+        let html = `
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="font-classic text-xl font-black text-[#1e1b18]">אוצרות יצירות פעילות (${filtered.length})</h3>
+            <select onchange="approvedFilterZone = this.value; renderAdminContent('approved')" class="border border-[#cbb58d] rounded-xl px-3 py-1.5 text-xs bg-white font-bold">
+              <option value="all" ${approvedFilterZone === 'all' ? 'selected' : ''}>כל האולמות (${allApproved.length})</option>
+              ${activeZones.map(z => `<option value="${z.id}" ${approvedFilterZone === z.id ? 'selected' : ''}>${escapeHtml(z.name)}</option>`).join("")}
+            </select>
+          </div>`;
+
+        if (filtered.length === 0) html += `<div class="bg-white rounded-2xl p-6 text-center text-sm text-[#78716c] border border-[#e5dccb]">אין יצירות באולם זה כרגע.</div>`;
+
+        html += filtered.map(ex => {
+          const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
+          return `
+            <div class="bg-white border border-[#d6c7ad] rounded-2xl p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src="${ex.imageUrl}" class="w-14 h-14 rounded-xl object-cover bg-slate-200">
+                <img id="app-thumb-${ex.id}" src="${ex.imageUrl}" class="w-16 h-16 rounded-xl object-cover bg-[#f1eadc] shrink-0">
                 <div>
-                  <div class="font-bold text-sm">${escapeHtml(ex.title)}</div>
-                  <div class="text-xs text-slate-500">${escapeHtml(ex.studentName)} (${escapeHtml(ex.studentClass)})</div>
+                  <div class="font-classic font-black text-base text-[#1e1b18]">${escapeHtml(ex.title)}</div>
+                  <div class="text-xs text-[#78716c]">${escapeHtml(ex.studentName)} (${escapeHtml(ex.studentClass)}) • 📍 ${hsCount} נקודות חמות</div>
                 </div>
               </div>
-              <div class="flex flex-wrap gap-1.5">
-                <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-600 text-white text-xs font-bold px-3 py-2 rounded-xl">📍 נקודות חמות</button>
-                <button onclick="openPrintablePlaque('${ex.id}')" class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-2 rounded-xl">🖨️ שלט QR</button>
-                <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl">${isTeacherOrSuper ? '🗑️ מחק' : '🗑️ בקש מחיקה'}</button>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <select onchange="moveExhibitZone('${ex.id}', this.value)" class="border border-[#d6c7ad] rounded-xl px-2 py-1.5 text-xs bg-[#faf7f0]" title="העבר לאולם אחר">
+                  ${activeZones.map(z => `<option value="${z.id}" ${String(z.id).trim() === String(ex.zoneId).trim() ? 'selected' : ''}>${escapeHtml(z.name)}</option>`).join("")}
+                </select>
+                <button onclick="openHotspotEditor('${ex.id}')" class="btn-gold text-xs font-bold px-3 py-1.5 rounded-xl">📍 נקודות חמות</button>
+                <button onclick="openPrintablePlaque('${ex.id}')" class="bg-[#f1eadc] hover:bg-[#e5d9c3] text-[#4a1c24] text-xs font-bold px-3 py-1.5 rounded-xl">🖨️ שלט QR</button>
+                <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-50 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-xl">${isTeacherOrSuper ? '🗑️' : '🗑️ בקש מחיקה'}</button>
               </div>
-            </div>
-          `).join("");
+            </div>`;
+        }).join("");
+
+        box.innerHTML = html;
+        filtered.forEach(ex => hydrateAdminImg(document.getElementById(`app-thumb-${ex.id}`), ex.imageUrl));
       }
 
       if (tab === "zones") {
+        const lobbyImgUrl = (museumData.settings && museumData.settings.lobbyImage) || "";
+        const lobbyWelcome = (museumData.settings && museumData.settings.lobbyWelcome) || "";
+        const museumName = (museumData.settings && museumData.settings.museumName) || "המוזיאון הפיזיטלי";
+
         box.innerHTML = `
-          <div class="bg-sky-50 p-4 rounded-2xl border border-sky-200">
-            <h4 class="font-bold text-sm text-sky-900 mb-2">🏛️ כיתוב בחדר הכניסה הראשי (הלובי)</h4>
-            <div class="flex gap-2">
-              <input type="text" id="lobby-welcome-input" value="${escapeHtml((museumData.settings && museumData.settings.lobbyWelcome) || '')}" placeholder="משפט פתיחה שיוצג בכניסה..." class="flex-1 border rounded-xl px-3 py-2 text-sm bg-white">
-              <button onclick="saveLobbyWelcome()" class="bg-sky-600 text-white font-bold px-4 rounded-xl text-xs">שמור</button>
+          <div class="bg-white border-2 border-[#b88c46]/60 rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-classic text-xl font-black text-[#4a1c24]">🏛️ אולם הכניסה הראשי (הרוטונדה)</h4>
+              <span class="text-[11px] font-bold bg-[#f1eadc] text-[#7c5a24] px-2.5 py-1 rounded-full">השערים מתחברים אוטומטית לתמונה שתעלה</span>
             </div>
-          </div>
 
-          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <h4 class="font-bold text-sm mb-2">➕ הקמת חדר / אגף חדש</h4>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <input type="text" id="new-zone-name" placeholder="שם האגף" class="border rounded-xl px-3 py-2 text-sm bg-white">
-              <input type="text" id="new-zone-welcome" placeholder="כיתוב פתיחה בחדר" class="border rounded-xl px-3 py-2 text-sm bg-white">
-              <input type="color" id="new-zone-color" value="#0ea5e9" class="h-10 w-full rounded-xl cursor-pointer">
-              <button onclick="createNewZone()" class="bg-indigo-600 text-white font-bold rounded-xl text-sm py-2">הקם חדר</button>
-            </div>
-          </div>
-
-          <div class="space-y-2 mt-4">
-            ${museumData.zones.map(z => `
-              <div class="border rounded-2xl p-3 space-y-2 ${z.status === 'delete_pending' ? 'bg-rose-50 border-rose-200' : 'bg-white'}">
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center gap-2">
-                    <span class="w-4 h-4 rounded-full" style="background:${z.themeColor}"></span>
-                    <span class="font-bold text-sm">${escapeHtml(z.name)}</span>
-                  </div>
-                  <div class="flex gap-2">
-                    ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="approveZoneDelete('${z.id}')" class="bg-rose-600 text-white text-xs px-3 py-1 rounded-lg">אשר מחיקה</button>` : ''}
-                    <button onclick="requestZoneDelete('${z.id}')" class="text-rose-600 text-xs font-bold px-2 py-1">מחק חדר</button>
-                  </div>
-                </div>
-                <div class="flex gap-2">
-                  <input type="text" id="zone-text-${z.id}" value="${escapeHtml(z.welcomeText || '')}" placeholder="כיתוב בכניסה לחדר זה..." class="flex-1 border rounded-lg px-2.5 py-1 text-xs bg-slate-50">
-                  <button onclick="updateZoneText('${z.id}')" class="bg-slate-800 text-white text-xs px-3 py-1 rounded-lg font-bold">עדכן כיתוב</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-[#78716c] mb-1">שם המוזיאון בכותרת</label>
+                <div class="flex gap-1.5">
+                  <input type="text" id="museum-name-input" value="${escapeHtml(museumName)}" class="flex-1 border border-[#d6c7ad] rounded-xl px-3 py-1.5 text-xs bg-[#faf7f0]">
+                  <button onclick="saveSetting('museumName', document.getElementById('museum-name-input').value)" class="btn-burgundy px-3 rounded-xl text-xs font-bold">שמור</button>
                 </div>
               </div>
-            `).join("")}
+              <div>
+                <label class="block text-[11px] font-bold text-[#78716c] mb-1">כיתוב פתיחה באולם הכניסה</label>
+                <div class="flex gap-1.5">
+                  <input type="text" id="lobby-welcome-input" value="${escapeHtml(lobbyWelcome)}" placeholder="ברוכים הבאים למוזיאון בית הספר..." class="flex-1 border border-[#d6c7ad] rounded-xl px-3 py-1.5 text-xs bg-[#faf7f0]">
+                  <button onclick="saveSetting('lobbyWelcome', document.getElementById('lobby-welcome-input').value)" class="btn-burgundy px-3 rounded-xl text-xs font-bold">שמור</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[#faf7f0] border border-[#e5dccb] rounded-xl p-3 flex flex-col md:flex-row items-center gap-3">
+              <img id="preview-bg-lobby" src="${lobbyImgUrl || 'lobby-360.jpg'}" onerror="this.style.opacity='0.25'" class="w-36 h-18 object-cover rounded-lg border border-[#cbb58d] bg-[#ebe3d2] shrink-0">
+              <div class="flex-1 w-full space-y-1.5">
+                <div class="text-xs font-bold text-[#1e1b18]">תמונת 360 של אולם הכניסה הראשי:</div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="file" id="bg-file-lobby" accept="image/*" class="text-xs bg-white p-1.5 rounded-lg border border-[#d6c7ad] flex-1">
+                  <button onclick="uploadRoomBackground('lobby', 'bg-file-lobby', this)" class="btn-gold text-xs font-bold px-3.5 py-2 rounded-xl">🖼️ העלה תמונה לכניסה</button>
+                  ${lobbyImgUrl ? `<button onclick="clearRoomBackground('lobby')" class="bg-white border text-xs px-2.5 py-2 rounded-xl text-[#78716c]">איפוס</button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-[#f1eadc]/70 p-4 rounded-2xl border border-[#cbb58d] space-y-2.5">
+            <h4 class="font-classic text-lg font-black text-[#1e1b18]">➕ הקמת אולם תצוגה חדש</h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input type="text" id="new-zone-name" placeholder="שם האולם (למשל: אולם האמנות)" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-white">
+              <input type="text" id="new-zone-welcome" placeholder="כיתוב בכניסה לאולם" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-white">
+              <select id="new-zone-color" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-white font-bold">
+                <option value="#c59d5f">זהב קלאסי (מומלץ)</option>
+                <option value="#8c2f39">בורדו מלכותי</option>
+                <option value="#2d6a4f">אזמרגד עמוק</option>
+                <option value="#2b5876">כחול ספיר</option>
+                <option value="#9c6644">ברונזה עתיקה</option>
+              </select>
+              <button onclick="createNewZone(this)" class="btn-burgundy font-bold rounded-xl text-xs py-2">🏛️ הקם אולם</button>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-[#57534e]">
+              <span>תמונת 360 לאולם (אופציונלי — ניתן גם להעלות אח"כ):</span>
+              <input type="file" id="new-zone-bg-file" accept="image/*" class="text-xs bg-white p-1 rounded-lg border border-[#d6c7ad]">
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            ${museumData.zones.map(z => {
+              const count = museumData.exhibits.filter(e => String(e.zoneId).trim() === String(z.id).trim() && e.status === "approved").length;
+              return `
+              <div class="bg-white border rounded-2xl p-4 space-y-3 ${z.status === 'delete_pending' ? 'border-rose-300 bg-rose-50' : 'border-[#d6c7ad]'}">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full border border-black/15" style="background:${z.themeColor || '#c59d5f'}"></span>
+                    <span class="font-classic text-lg font-black text-[#1e1b18]">${escapeHtml(z.name)}</span>
+                    <span class="text-[11px] bg-[#f1eadc] text-[#57534e] px-2 py-0.5 rounded-full font-bold">${count} יצירות</span>
+                    ${z.status === 'delete_pending' ? '<span class="text-xs text-rose-700 font-bold">(ממתין לאישור מחיקה)</span>' : ''}
+                  </div>
+                  <div class="flex gap-2">
+                    ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="approveZoneDelete('${z.id}')" class="bg-rose-600 text-white text-xs px-3 py-1 rounded-lg font-bold">אשר מחיקה</button>` : ''}
+                    ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="restoreZone('${z.id}')" class="bg-white border text-xs px-3 py-1 rounded-lg font-bold">שחזר</button>` : ''}
+                    <button onclick="requestZoneDelete('${z.id}')" class="text-rose-700 text-xs font-bold px-2 py-1 hover:bg-rose-50 rounded-lg">🗑️ מחק אולם</button>
+                  </div>
+                </div>
+
+                <div class="flex gap-2">
+                  <input type="text" id="zone-text-${z.id}" value="${escapeHtml(z.welcomeText || '')}" placeholder="כיתוב פתיחה שיוצג בכניסה לאולם זה..." class="flex-1 border border-[#d6c7ad] rounded-xl px-3 py-1.5 text-xs bg-[#faf7f0]">
+                  <button onclick="updateZoneDetails('${z.id}')" class="btn-burgundy text-xs px-3.5 py-1.5 rounded-xl font-bold">עדכן כיתוב</button>
+                </div>
+
+                <div class="bg-[#faf7f0] border border-[#e5dccb] rounded-xl p-2.5 flex flex-col md:flex-row items-center gap-3">
+                  <img id="preview-bg-${z.id}" src="${z.bgImageUrl || ''}" class="w-28 h-14 object-cover rounded-lg border border-[#d6c7ad] bg-[#ebe3d2] ${z.bgImageUrl ? '' : 'hidden'}">
+                  <div class="flex-1 w-full flex flex-wrap items-center gap-2">
+                    <span class="text-[11px] font-bold text-[#7c5a24]">${z.bgImageUrl ? '✓ קיימת תמונת 360 מותאמת לאולם' : 'רקע ברירת מחדל קלאסי — ניתן להעלות תמונת 360 לאולם:'}</span>
+                    <input type="file" id="bg-file-${z.id}" accept="image/*" class="text-xs bg-white p-1 rounded-lg border border-[#d6c7ad] flex-1">
+                    <button onclick="uploadRoomBackground('${z.id}', 'bg-file-${z.id}', this)" class="btn-gold text-xs font-bold px-3 py-1.5 rounded-xl">🖼️ העלה רקע לאולם</button>
+                    ${z.bgImageUrl ? `<button onclick="clearRoomBackground('${z.id}')" class="bg-white border text-xs px-2 py-1.5 rounded-xl text-[#78716c]">איפוס</button>` : ''}
+                  </div>
+                </div>
+              </div>`;
+            }).join("")}
           </div>`;
+
+        if (lobbyImgUrl) hydrateAdminImg(document.getElementById("preview-bg-lobby"), lobbyImgUrl);
+        museumData.zones.forEach(z => {
+          if (z.bgImageUrl) hydrateAdminImg(document.getElementById(`preview-bg-${z.id}`), z.bgImageUrl);
+        });
       }
 
       if (tab === "staff" && currentUser.role === "super_admin") {
-        const currentLobby = (museumData.settings && museumData.settings.lobbyImage) || "lobby-360.jpg";
         box.innerHTML = `
-          <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-200 space-y-3">
-            <h4 class="font-bold text-sm text-indigo-900">🖼️ החלפת תמונת 360 של חדר הכניסה הראשי</h4>
-            <p class="text-xs text-indigo-700">בחר תמונת פנורמה (יחס מועדף 2:1) — היא תישמר בדרייב ותתעדכן מיד ברקע הכניסה:</p>
-            <div class="flex flex-wrap items-center gap-2">
-              <input type="file" id="lobby-pano-upload" accept="image/*" class="text-xs bg-white p-2 rounded-xl border flex-1">
-              <button onclick="uploadNewLobbyPano(this)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">החלף תמונת כניסה</button>
-              <button onclick="resetLobbyPano()" class="bg-white border text-slate-600 text-xs font-bold px-3 py-2.5 rounded-xl">איפוס</button>
-            </div>
-            <div class="flex items-center gap-3 pt-1">
-              <img id="lobby-preview-thumb" src="${currentLobby}" onerror="this.style.display='none'" class="w-28 h-14 object-cover rounded-xl border bg-white">
-              <div class="text-[11px] text-indigo-700">תצוגה מקדימה של תמונת הלובי הפעילה</div>
-            </div>
-          </div>
-
-          <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200">
-            <h4 class="font-bold text-sm text-amber-900 mb-2">👑 מינוי מורה או תלמיד מנהל מוזיאון</h4>
+          <div class="bg-white p-4 rounded-2xl border border-[#cbb58d]">
+            <h4 class="font-classic text-lg font-black text-[#4a1c24] mb-2">👑 מינוי מורה או תלמיד אוצר מוזיאון</h4>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <input type="text" id="staff-name" placeholder="שם מלא" class="border rounded-xl px-3 py-2 text-sm bg-white">
-              <select id="staff-role" class="border rounded-xl px-3 py-2 text-sm bg-white">
-                <option value="student_manager">תלמיד/ה מנהל/ת מוזיאון</option>
-                <option value="teacher">מורה אחראי/ת</option>
+              <input type="text" id="staff-name" placeholder="שם מלא" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-[#faf7f0]">
+              <select id="staff-role" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-[#faf7f0] font-bold">
+                <option value="student_manager">תלמיד/ה אוצר/ת מוזיאון</option>
+                <option value="teacher">מורה אוצר/ת</option>
               </select>
-              <input type="text" id="staff-code" placeholder="קוד כניסה אישי" class="border rounded-xl px-3 py-2 text-sm bg-white">
-              <button onclick="addStaffMember()" class="bg-amber-600 text-white font-bold rounded-xl text-sm py-2">הוסף לצוות</button>
+              <input type="text" id="staff-code" placeholder="קוד כניסה אישי" class="border border-[#d6c7ad] rounded-xl px-3 py-2 text-xs bg-[#faf7f0]">
+              <button onclick="addStaffMember()" class="btn-gold font-bold rounded-xl text-xs py-2">הוסף לצוות</button>
             </div>
           </div>
           <div class="space-y-2 mt-4">
+            ${museumData.staff.length === 0 ? '<p class="text-xs text-[#78716c]">טרם מונו אנשי צוות נוספים.</p>' : ''}
             ${museumData.staff.map(s => `
-              <div class="border rounded-xl p-3 flex justify-between items-center">
+              <div class="bg-white border border-[#d6c7ad] rounded-xl p-3 flex justify-between items-center">
                 <div>
-                  <span class="font-bold text-sm">${escapeHtml(s.name)}</span>
-                  <span class="text-xs bg-slate-100 px-2 py-0.5 rounded-full mr-2">${translateRole(s.role)}</span>
+                  <span class="font-bold text-sm text-[#1e1b18]">${escapeHtml(s.name)}</span>
+                  <span class="text-xs bg-[#f1eadc] text-[#4a1c24] px-2.5 py-0.5 rounded-full mr-2 font-bold">${translateRole(s.role)}</span>
                 </div>
-                <button onclick="removeStaffMember('${s.id}')" class="text-rose-600 text-xs font-bold">הסר הרשאה</button>
+                <button onclick="removeStaffMember('${s.id}')" class="text-rose-700 text-xs font-bold hover:underline">הסר הרשאה</button>
               </div>
             `).join("")}
           </div>`;
       }
     }
 
+    async function uploadRoomBackground(target, fileInputId, btn) {
+      const input = document.getElementById(fileInputId);
+      const file = input && input.files ? input.files[0] : null;
+      if (!file) return showToast("בחר קובץ תמונה תחילה", "error");
+
+      const origText = btn.innerText;
+      btn.disabled = true; btn.innerText = "⏳ מעלה לדרייב...";
+      try {
+        const { dataUrl, img } = await compressImageFile(file, 1600, 0.78);
+        const res = await apiPost({ action: "upload_room_bg", target, imageData: dataUrl });
+        if (!res || !res.success) {
+          return showToast("שגיאה בהעלאת הרקע: " + (res && (res.message || res.error) ? (res.message || res.error) : "ודא ש-Code.gs פורסם ל-v3.0"), "error");
+        }
+        if (res.imageUrl) imageCache[res.imageUrl] = img;
+        showToast("🎉 תמונת ה-360 של החדר נשמרה בהצלחה!", "success");
+        await refreshData(true);
+      } catch (e) {
+        showToast("שגיאה בהעלאת התמונה: " + e.message, "error");
+      } finally {
+        btn.disabled = false; btn.innerText = origText;
+      }
+    }
+
+    async function clearRoomBackground(target) {
+      const res = await apiPost({ action: "upload_room_bg", target, imageData: "" });
+      if (res && res.success) {
+        showToast("רקע החדר אופס לרוטונדה הקלאסית", "success");
+        refreshData(true);
+      }
+    }
+
+    async function saveSetting(key, value) {
+      const res = await apiPost({ action: "update_settings", key, value });
+      if (res && res.success) {
+        showToast("✅ ההגדרה נשמרה בהצלחה!", "success");
+        refreshData(true);
+      } else {
+        showToast("שגיאה בשמירה", "error");
+      }
+    }
+
+    async function approveExhibit(id, btn) {
+      const zoneSel = document.getElementById(`assign-zone-${id}`);
+      const zoneId = zoneSel ? zoneSel.value : "";
+      if (!zoneId) return showToast("נא לבחור אולם תחילה", "error");
+      if (btn) { btn.disabled = true; btn.innerText = "⏳ מאשר..."; }
+      try {
+        const res = await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId });
+        if (!res || !res.success) {
+          showToast("האישור נכשל: " + (res && (res.message || res.error) ? (res.message || res.error) : "נסה שוב"), "error");
+          if (btn) { btn.disabled = false; btn.innerText = "✅ אשר והצב באולם"; }
+          return;
+        }
+        showToast("🎉 היצירה אושרה והוצבה באולם!", "success");
+        await refreshData(true);
+      } catch (e) {
+        showToast("שגיאת רשת באישור היצירה", "error");
+        if (btn) { btn.disabled = false; btn.innerText = "✅ אשר והצב באולם"; }
+      }
+    }
+
+    async function moveExhibitZone(id, newZoneId) {
+      const res = await apiPost({ action: "manage_exhibit", subAction: "move_zone", id, zoneId: newZoneId });
+      if (res && res.success) {
+        showToast("✅ היצירה הועברה לאולם החדש", "success");
+        refreshData(true);
+      } else {
+        showToast("שגיאה בהעברת היצירה", "error");
+      }
+    }
+
+    async function requestDeleteExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "request_delete", id });
+      showToast(currentUser.role === "student_manager" ? "בקשת המחיקה נשלחה לאישור מורה" : "היצירה נמחקה", "success");
+      refreshData(true);
+    }
+    async function confirmDeleteExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "approve_delete", id });
+      showToast("המחיקה אושרה סופית", "success");
+      refreshData(true);
+    }
+    async function restoreExhibit(id) {
+      await apiPost({ action: "manage_exhibit", subAction: "restore", id });
+      showToast("היצירה שוחזרה לתצוגה", "success");
+      refreshData(true);
+    }
+
+    async function createNewZone(btn) {
+      const name = document.getElementById("new-zone-name").value.trim();
+      const welcomeText = document.getElementById("new-zone-welcome").value.trim();
+      const themeColor = document.getElementById("new-zone-color").value;
+      const bgFile = document.getElementById("new-zone-bg-file").files[0];
+      if (!name) return showToast("נא להזין שם לאולם החדש", "error");
+
+      btn.disabled = true; btn.innerText = "⏳ מקים אולם...";
+      try {
+        let imageData = "";
+        if (bgFile) {
+          const compressed = await compressImageFile(bgFile, 1600, 0.78);
+          imageData = compressed.dataUrl;
+        }
+        const res = await apiPost({ action: "manage_zone", subAction: "create", name, welcomeText, themeColor, imageData });
+        if (!res || !res.success) return showToast("שגיאה בהקמת האולם", "error");
+        showToast(`🏛️ "${name}" הוקם בהצלחה!`, "success");
+        refreshData(true);
+      } finally {
+        btn.disabled = false; btn.innerText = "🏛️ הקם אולם";
+      }
+    }
+
+    async function updateZoneDetails(id) {
+      const welcomeText = document.getElementById(`zone-text-${id}`).value;
+      const res = await apiPost({ action: "manage_zone", subAction: "update_details", id, welcomeText });
+      if (res && res.success) {
+        showToast("✅ כיתוב האולם עודכן", "success");
+        refreshData(true);
+      }
+    }
+    async function requestZoneDelete(id) {
+      await apiPost({ action: "manage_zone", subAction: "request_delete", id });
+      showToast(currentUser.role === "student_manager" ? "בקשת מחיקת האולם נשלחה למורה" : "האולם נמחק", "success");
+      refreshData(true);
+    }
+    async function approveZoneDelete(id) {
+      await apiPost({ action: "manage_zone", subAction: "approve_delete", id });
+      showToast("האולם נמחק לצמיתות", "success");
+      refreshData(true);
+    }
+    async function restoreZone(id) {
+      await apiPost({ action: "manage_zone", subAction: "restore", id });
+      showToast("האולם שוחזר", "success");
+      refreshData(true);
+    }
+    async function addStaffMember() {
+      const name = document.getElementById("staff-name").value.trim();
+      const role = document.getElementById("staff-role").value;
+      const accessCode = document.getElementById("staff-code").value.trim();
+      if (!name || !accessCode) return showToast("נא למלא שם וקוד אישי", "error");
+      await apiPost({ action: "manage_staff", subAction: "add", name, role, accessCode });
+      showToast(`👑 ${name} נוסף/ה לצוות המוזיאון`, "success");
+      refreshData(true);
+    }
+    async function removeStaffMember(id) {
+      await apiPost({ action: "manage_staff", subAction: "remove", id });
+      showToast("ההרשאה הוסרה");
+      refreshData(true);
+    }
+
     function openPrintablePlaque(exhibitId) {
-      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+      const ex = museumData.exhibits.find(e => String(e.id) === String(exhibitId));
       if (!ex) return;
       const directUrl = `${window.location.origin}${window.location.pathname}?exhibit=${encodeURIComponent(ex.id)}`;
       document.getElementById("plaque-title").innerText = ex.title;
@@ -1494,113 +2143,16 @@
       openModal("plaque-modal");
     }
 
-    function uploadNewLobbyPano(btn) {
-      const file = document.getElementById("lobby-pano-upload").files[0];
-      if (!file) return alert("בחר קובץ תמונה תחילה");
-      btn.disabled = true; btn.innerText = "⏳ מעלה...";
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement("canvas");
-            const MAX_W = 1920;
-            let w = img.width, h = img.height;
-            if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-
-            const res = await apiPost({ action: "update_settings", key: "lobbyImage", value: dataUrl });
-            if (!res || !res.success) return alert("שגיאה בשמירת תמונת הלובי: " + (res && res.message ? res.message : ""));
-            if (res.value) imageCache[res.value] = img;
-            alert("🎉 תמונת חדר הכניסה הוחלפה בהצלחה!");
-            refreshData(true);
-          } catch (e) {
-            alert("שגיאה בהעלאת התמונה: " + e.message);
-          } finally {
-            btn.disabled = false; btn.innerText = "החלף תמונת כניסה";
-          }
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function resetLobbyPano() {
-      await apiPost({ action: "update_settings", key: "lobbyImage", value: "" });
-      alert("תמונת הכניסה אופסה לברירת המחדל.");
-      refreshData(true);
-    }
-
-    async function saveLobbyWelcome() {
-      await apiPost({ action: "update_settings", key: "lobbyWelcome", value: document.getElementById("lobby-welcome-input").value });
-      alert("✅ כיתוב חדר הכניסה עודכן!");
-      refreshData(true);
-    }
-    async function approveExhibit(id) {
-      const zoneId = document.getElementById(`assign-zone-${id}`).value;
-      const res = await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId });
-      if (!res || !res.success) return alert("שגיאה באישור המוצג: " + (res && res.message ? res.message : ""));
-      refreshData(true);
-    }
-    async function requestDeleteExhibit(id) {
-      await apiPost({ action: "manage_exhibit", subAction: "request_delete", id });
-      if (currentUser.role === "student_manager") alert("בקשת המחיקה נשלחה לאישור מורה / מנהל על.");
-      refreshData(true);
-    }
-    async function confirmDeleteExhibit(id) {
-      await apiPost({ action: "manage_exhibit", subAction: "approve_delete", id });
-      refreshData(true);
-    }
-    async function restoreExhibit(id) {
-      await apiPost({ action: "manage_exhibit", subAction: "restore", id });
-      refreshData(true);
-    }
-    async function createNewZone() {
-      const name = document.getElementById("new-zone-name").value.trim();
-      const welcomeText = document.getElementById("new-zone-welcome").value.trim();
-      const themeColor = document.getElementById("new-zone-color").value;
-      if (!name) return alert("נא להזין שם לאגף");
-      const res = await apiPost({ action: "manage_zone", subAction: "create", name, welcomeText, themeColor });
-      if (!res || !res.success) return alert("שגיאה בהקמת החדר: " + (res && res.message ? res.message : ""));
-      refreshData(true);
-    }
-    async function updateZoneText(id) {
-      const welcomeText = document.getElementById(`zone-text-${id}`).value;
-      await apiPost({ action: "manage_zone", subAction: "update_text", id, welcomeText });
-      alert("✅ כיתוב החדר עודכן!");
-      refreshData(true);
-    }
-    async function requestZoneDelete(id) {
-      await apiPost({ action: "manage_zone", subAction: "request_delete", id });
-      refreshData(true);
-    }
-    async function approveZoneDelete(id) {
-      await apiPost({ action: "manage_zone", subAction: "approve_delete", id });
-      refreshData(true);
-    }
-    async function addStaffMember() {
-      const name = document.getElementById("staff-name").value.trim();
-      const role = document.getElementById("staff-role").value;
-      const accessCode = document.getElementById("staff-code").value.trim();
-      if (!name || !accessCode) return;
-      await apiPost({ action: "manage_staff", subAction: "add", name, role, accessCode });
-      refreshData(true);
-    }
-    async function removeStaffMember(id) {
-      await apiPost({ action: "manage_staff", subAction: "remove", id });
-      refreshData(true);
-    }
-
-    // ==================== 8. עורך נקודות חמות + הקלטת קול WAV קלה ואוניברסלית ====================
+    // ==================== 8. סטודיו נקודות חמות + הקלטה אוניברסלית ====================
     function openHotspotEditor(exhibitId) {
-      const ex = museumData.exhibits.find(e => e.id === exhibitId);
+      const ex = museumData.exhibits.find(e => String(e.id) === String(exhibitId));
       if (!ex) return;
-      editingExhibitId = exhibitId;
+      editingExhibitId = ex.id;
       uploadingAudioCount = 0;
       draftHotspots = JSON.parse(ex.hotspotsJson || "[]");
-      document.getElementById("editor-img").src = ex.imageUrl;
+      const edImg = document.getElementById("editor-img");
+      edImg.src = ex.imageUrl;
+      hydrateAdminImg(edImg, ex.imageUrl);
       renderEditorHotspots();
       openModal("hotspot-editor-modal");
     }
@@ -1624,33 +2176,35 @@
     function renderEditorHotspots() {
       const layer = document.getElementById("editor-hotspots-layer");
       layer.innerHTML = draftHotspots.map((hs, idx) => `
-        <div style="left:${hs.x}%; top:${hs.y}%;" class="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center border-2 border-white shadow">
+        <div style="left:${hs.x}%; top:${hs.y}%;" class="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#4a1c24] text-[#faf7f0] font-bold text-xs flex items-center justify-center border-2 border-[#e2c285] shadow">
           ${idx + 1}
         </div>
       `).join("");
 
       const list = document.getElementById("editor-hotspots-list");
-      list.innerHTML = draftHotspots.map((hs, idx) => {
-        const fid = hs.audioFileId || (hs.audioUrl && (hs.audioUrl.match(/[-\w]{25,}/) || [])[0]);
-        const localPreview = fid && audioCache[fid] ? `<audio controls src="${audioCache[fid]}" class="w-full h-8 mt-1"></audio>` : "";
-        return `
-        <div class="border border-slate-200 rounded-2xl p-3 bg-slate-50 space-y-2">
-          <div class="flex justify-between items-center">
-            <span class="font-bold text-xs text-indigo-700">📍 נקודה #${idx + 1}</span>
-            <button onclick="draftHotspots.splice(${idx}, 1); renderEditorHotspots();" class="text-rose-500 text-xs font-bold">הסר</button>
-          </div>
-          <input type="text" value="${escapeHtml(hs.title)}" oninput="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
-          <textarea rows="2" oninput="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">${escapeHtml(hs.text)}</textarea>
-          <input type="url" value="${escapeHtml(hs.link || '')}" oninput="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
-          <div class="flex flex-wrap items-center gap-2">
-            <button type="button" onclick="toggleRecordAudio(${idx}, this)" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">
-              🎙️ ${fid ? 'הקלט מחדש' : 'הקלט הסבר קולי (עד 30 שנ׳)'}
-            </button>
-            ${fid ? '<span class="text-xs text-emerald-600 font-bold">✅ נשמר בדרייב</span>' : ''}
-          </div>
-          ${localPreview}
-        </div>`;
-      }).join("");
+      list.innerHTML = draftHotspots.length === 0
+        ? `<p class="text-xs text-[#78716c] text-center py-6">לחצו על התמונה משמאל כדי להוסיף את הנקודה החמה הראשונה.</p>`
+        : draftHotspots.map((hs, idx) => {
+          const fid = hs.audioFileId || (hs.audioUrl && (hs.audioUrl.match(/[-\w]{25,}/) || [])[0]);
+          const localPreview = fid && audioCache[fid] ? `<audio controls src="${audioCache[fid]}" class="w-full h-8 mt-1"></audio>` : "";
+          return `
+          <div class="border border-[#d6c7ad] rounded-2xl p-3 bg-white space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-xs text-[#4a1c24]">📍 נקודה #${idx + 1}</span>
+              <button onclick="draftHotspots.splice(${idx}, 1); renderEditorHotspots();" class="text-rose-600 text-xs font-bold">הסר</button>
+            </div>
+            <input type="text" value="${escapeHtml(hs.title)}" oninput="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border border-[#e5dccb] rounded-lg px-2.5 py-1 text-xs bg-[#faf7f0]">
+            <textarea rows="2" oninput="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border border-[#e5dccb] rounded-lg px-2.5 py-1 text-xs bg-[#faf7f0]">${escapeHtml(hs.text)}</textarea>
+            <input type="url" value="${escapeHtml(hs.link || '')}" oninput="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border border-[#e5dccb] rounded-lg px-2.5 py-1 text-xs bg-[#faf7f0]">
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="toggleRecordAudio(${idx}, this)" class="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-lg">
+                🎙️ ${fid ? 'הקלט מחדש' : 'הקלט הסבר קולי (עד 30 שנ׳)'}
+              </button>
+              ${fid ? '<span class="text-xs text-emerald-700 font-bold">✓ נשמר בדרייב</span>' : ''}
+            </div>
+            ${localPreview}
+          </div>`;
+        }).join("");
     }
 
     async function blobToUniversalWavBase64(blob) {
@@ -1734,11 +2288,12 @@
               draftHotspots[idx].audioFileId = res.fileId;
               delete draftHotspots[idx].audioUrl;
               audioCache[res.fileId] = audioDataUrl;
+              showToast("🎙️ ההקלטה נשמרה בהצלחה", "success");
             } else {
-              alert("שגיאה בשמירת ההקלטה: " + (res && (res.message || res.error) ? (res.message || res.error) : "ודא ש-Code.gs נפרס לגרסה חדשה"));
+              showToast("שגיאה בשמירת ההקלטה בדרייב", "error");
             }
           } catch (err) {
-            alert("שגיאת רשת בהעלאת ההקלטה: " + err.message);
+            showToast("שגיאת רשת בהעלאת ההקלטה", "error");
           } finally {
             uploadingAudioCount = Math.max(0, uploadingAudioCount - 1);
             if (uploadingAudioCount === 0) {
@@ -1762,12 +2317,12 @@
           }
         }, 1000);
       } catch (err) {
-        alert("לא ניתנה הרשאת מיקרופון בדפדפן.");
+        showToast("לא ניתנה הרשאת מיקרופון בדפדפן", "error");
       }
     }
 
     async function saveHotspotsToServer() {
-      if (uploadingAudioCount > 0) return alert("המתן לסיום העלאת ההקלטה לפני השמירה.");
+      if (uploadingAudioCount > 0) return showToast("המתן לסיום העלאת ההקלטה לפני השמירה");
       const btn = document.getElementById("save-hs-btn");
       btn.disabled = true; btn.innerText = "⏳ שומר...";
       try {
@@ -1778,13 +2333,14 @@
           hotspots: draftHotspots
         });
         if (res && res.success) {
+          showToast("✅ הנקודות החמות נשמרו במוזיאון!", "success");
           closeModal("hotspot-editor-modal");
           refreshData(true);
         } else {
-          alert("השמירה נכשלה: " + (res && (res.message || res.error) ? (res.message || res.error) : "ודא ש-Code.gs נפרס לגרסה חדשה"));
+          showToast("השמירה נכשלה: " + (res && (res.message || res.error) ? (res.message || res.error) : ""), "error");
         }
       } catch (err) {
-        alert("שגיאה בשמירת הנקודות החמות: " + err.message);
+        showToast("שגיאה בשמירת הנקודות החמות", "error");
       } finally {
         btn.disabled = false; btn.innerText = "💾 שמור נקודות חמות למוזיאון";
       }
@@ -1803,13 +2359,12 @@
     document.addEventListener("DOMContentLoaded", () => {
       initThreeEngine();
       setTimeout(() => {
-        const loader = document.getElementById("loader");
-        if (loader && !loader.classList.contains("hidden")) {
-          loader.classList.add("hidden");
+        if (!document.getElementById("loader").classList.contains("hidden")) {
           renderZonesNav();
           enterLobby(true);
+          hideLoader();
         }
-      }, 900);
+      }, 1000);
       refreshData(false);
     });
   </script>
