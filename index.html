@@ -6,21 +6,21 @@
   <title>המוזיאון הפיזיטלי 360</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #f8fafc; user-select: none; }
-    #scene-container { position: fixed; inset: 0; z-index: 1; }
+    body { font-family: 'Rubik', sans-serif; margin: 0; overflow: hidden; background: #0f172a; user-select: none; touch-action: none; }
+    #scene-container { position: fixed; inset: 0; z-index: 1; transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease; }
+    .scene-transitioning { transform: scale(1.18); opacity: 0.15; filter: blur(6px); }
     .glass-panel {
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
     }
     .pulse-ring { animation: pulse 2s infinite; }
     @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(14, 165, 233, 0); }
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.8); }
+      70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(14, 165, 233, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
     }
     ::-webkit-scrollbar { width: 6px; }
@@ -29,107 +29,128 @@
 </head>
 <body class="text-slate-800">
 
-  <div id="loader" class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50">
-    <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-    <h2 class="text-2xl font-black text-slate-800">פותח את שערי המוזיאון הפיזיטלי...</h2>
-    <p id="loader-status" class="text-slate-500 mt-1">טוען את חלל ה-360 ואת היצירות מהדרייב</p>
+  <!-- מסך טעינה -->
+  <div id="loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-sky-50 via-white to-indigo-50">
+    <div class="w-14 h-14 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+    <h2 class="text-xl font-black text-slate-800">פותח את שערי המוזיאון 360...</h2>
   </div>
 
-  <header class="fixed top-4 inset-x-4 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-    <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3 pointer-events-auto">
-      <button onclick="enterLobby()" class="flex items-center gap-2 font-black text-lg text-sky-700 hover:text-sky-500 transition">
-        <span>🏛️</span>
-        <span>מוזיאון 360</span>
+  <!-- סרגל עליון מינימליסטי (מותאם במיוחד לטלפון ולמחשב) -->
+  <header class="fixed top-3 inset-x-3 z-30 flex items-center justify-between gap-2 pointer-events-none">
+    <!-- תג מיקום נוכחי + חזרה ללובי -->
+    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto max-w-[68vw]">
+      <button onclick="enterLobby()" class="font-black text-base text-sky-700 hover:text-sky-500 shrink-0" title="חזרה לחדר הכניסה">
+        🏛️
       </button>
-      <span class="text-slate-300">|</span>
-      <span id="current-location-badge" class="text-sm font-bold bg-sky-100 text-sky-800 px-3 py-1 rounded-full">חדר הכניסה הראשי</span>
+      <span id="current-location-badge" class="text-xs md:text-sm font-bold text-slate-800 truncate">חדר הכניסה הראשי</span>
     </div>
 
-    <div id="zones-nav" class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto max-w-md pointer-events-auto"></div>
+    <!-- כפתור תפריט נפתח (שומר על מסך נקי בטלפון!) -->
+    <div class="relative pointer-events-auto">
+      <button onclick="toggleMainMenu()" class="glass-panel w-11 h-11 rounded-2xl flex items-center justify-center text-xl font-black text-slate-800 hover:bg-white transition shadow-lg" aria-label="תפריט">
+        ☰
+      </button>
 
-    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto">
-      <button onclick="openModal('upload-modal')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-sm shadow transition flex items-center gap-1.5">
-        <span>➕</span> <span>העלאת תוצר</span>
-      </button>
-      <button onclick="openQrModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold p-2 rounded-xl text-sm transition" title="הצג ברקוד כניסה">
-        📱 QR
-      </button>
-      <button id="admin-btn" onclick="handleAdminClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm shadow transition flex items-center gap-1.5">
-        <span>🔑</span> <span id="admin-btn-text">ניהול מוזיאון</span>
-      </button>
+      <!-- תפריט צף נפתח בדרישה -->
+      <div id="main-dropdown-menu" class="hidden absolute left-0 mt-2 w-64 glass-panel rounded-3xl p-3 space-y-2 shadow-2xl border border-slate-200/80">
+        <div class="text-[11px] font-bold text-slate-400 px-2">ניווט מהיר באגפים</div>
+        <div id="zones-nav-list" class="max-h-40 overflow-y-auto space-y-1"></div>
+        <hr class="border-slate-200">
+        <button onclick="toggleMainMenu(); requestStudentUpload();" class="w-full text-right px-3 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-2">
+          <span>➕</span> <span>העלאת תוצר תלמיד</span>
+        </button>
+        <button onclick="toggleMainMenu(); openQrModal();" class="w-full text-right px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-2">
+          <span>📱</span> <span>הצג ברקוד (QR) לכניסה</span>
+        </button>
+        <button onclick="toggleMainMenu(); handleAdminClick();" class="w-full text-right px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2">
+          <span>🔑</span> <span id="admin-btn-text">ניהול מוזיאון</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 glass-panel px-5 py-2 rounded-full text-xs md:text-sm font-medium text-slate-600 flex items-center gap-3 pointer-events-none">
-    <span>🖱️ גרור עם העכבר / הזז את הטלפון כדי להסתובב 360°</span>
-    <span>•</span>
-    <span>👆 לחץ על יצירה או שער כדי לחקור</span>
+  <!-- באנר כיתוב מותאם לחדר (מופיע רק אם המנהל/מורה הזין טקסט לחדר) -->
+  <div id="room-welcome-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-20 glass-panel px-4 py-2 rounded-2xl max-w-md w-[90vw] text-center pointer-events-none">
+    <p id="room-welcome-text" class="text-xs md:text-sm font-medium text-slate-700"></p>
   </div>
 
+  <!-- פקדי צפייה בתוך יצירת 360 (מופיעים רק כשנכנסים לתוך תמונה) -->
+  <div id="inside-exhibit-hud" class="hidden fixed bottom-4 inset-x-3 z-30 flex flex-col items-center gap-2 pointer-events-none">
+    <!-- כרטיס הסבר של נקודה חמה בתוך ה-360 -->
+    <div id="active-hotspot-box" class="hidden glass-panel p-4 rounded-3xl max-w-md w-full pointer-events-auto border-2 border-amber-400">
+      <div class="flex justify-between items-start gap-2">
+        <div class="flex items-center gap-1.5 text-amber-800 font-black text-sm">
+          <span>📍</span> <span id="hs-detail-title">הסבר</span>
+        </div>
+        <button onclick="document.getElementById('active-hotspot-box').classList.add('hidden')" class="text-slate-400 hover:text-slate-700 font-bold text-sm">✕</button>
+      </div>
+      <p id="hs-detail-text" class="text-slate-700 text-xs md:text-sm mt-1 leading-relaxed"></p>
+      <div id="hs-detail-audio" class="mt-2 hidden"></div>
+      <a id="hs-detail-link" href="#" target="_blank" class="mt-2 hidden inline-flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl">
+        🔗 פתח קישור להרחבה
+      </a>
+    </div>
+
+    <!-- סרגל זום ויציאה מתוך התמונה -->
+    <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 pointer-events-auto">
+      <button onclick="exitExhibitToZone()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl">
+        ↩️ יציאה לגלריה
+      </button>
+      <button onclick="adjustZoom(-0.25)" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-xl font-black text-base" title="התקרב (זום פנימה)">➕</button>
+      <button onclick="adjustZoom(0.25)" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-xl font-black text-base" title="התרחק (זום החוצה)">➖</button>
+      <button onclick="openExhibitInfoCard()" class="bg-sky-100 text-sky-800 text-xs font-bold px-3 py-2 rounded-xl">
+        ℹ️ תקציר היצירה
+      </button>
+    </div>
+  </div>
+
+  <!-- כרטיס פרטי יצירה צף (נפתח בלחיצה על 'תקציר היצירה') -->
+  <div id="exhibit-info-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex justify-between items-start">
+        <div>
+          <span id="info-class" class="text-xs font-bold bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full"></span>
+          <h3 id="info-title" class="text-xl font-black text-slate-800 mt-2"></h3>
+          <p id="info-student" class="text-xs font-medium text-slate-500"></p>
+        </div>
+        <button onclick="closeModal('exhibit-info-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
+      </div>
+      <p id="info-summary" class="mt-4 text-sm text-slate-700 bg-slate-50 p-4 rounded-2xl leading-relaxed"></p>
+      <button onclick="closeModal('exhibit-info-modal')" class="mt-4 w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl">סגור</button>
+    </div>
+  </div>
+
+  <!-- זירת ה-360 האימרסיבית (A-Frame WebGL עם גרירה חופשית לכל הכיוונים + זום) -->
   <div id="scene-container">
     <a-scene id="vr-scene" vr-mode-ui="enabled: false" cursor="rayOrigin: mouse" raycaster="objects: .clickable">
       <a-assets id="scene-assets">
-        <img id="lobby-pano" crossorigin="anonymous">
         <img id="gallery-pano" crossorigin="anonymous">
       </a-assets>
 
       <a-entity id="rig" position="0 1.6 0">
-        <a-camera look-controls="reverseMouseDrag: true" wasd-controls="enabled: false"></a-camera>
+        <!-- magicWindowTrackingEnabled: false מאפשר גרירה חופשית באצבע בטלפון למעלה, למטה ולצדדים! -->
+        <a-camera id="main-camera" fov="80" look-controls="reverseMouseDrag: true; touchEnabled: true; magicWindowTrackingEnabled: false" wasd-controls="enabled: false"></a-camera>
       </a-entity>
 
-      <a-sky id="museum-sky" src="#lobby-pano" radius="50" rotation="0 -90 0"></a-sky>
-      <a-circle position="0 0 0" rotation="-90 0 0" radius="14" color="#f1f5f9" opacity="0.22"></a-circle>
+      <a-sky id="museum-sky" radius="50" rotation="0 -90 0"></a-sky>
+      <a-circle id="museum-floor" position="0 0 0" rotation="-90 0 0" radius="14" color="#f1f5f9" opacity="0.18"></a-circle>
       <a-entity id="room-objects"></a-entity>
     </a-scene>
   </div>
 
-  <!-- מודאל 1: צפייה במוצג + נקודות חמות -->
-  <div id="exhibit-viewer-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
-      <div class="relative bg-slate-100 md:w-3/5 flex items-center justify-center p-4 overflow-hidden">
-        <div id="hotspot-image-wrapper" class="relative inline-block max-w-full max-h-[75vh]">
-          <img id="viewer-img" src="" class="max-h-[72vh] w-auto rounded-2xl shadow-lg object-contain">
-          <div id="viewer-hotspots-layer" class="absolute inset-0"></div>
-        </div>
-      </div>
-
-      <div class="md:w-2/5 p-6 flex flex-col justify-between overflow-y-auto">
-        <div>
-          <div class="flex justify-between items-start gap-2">
-            <div>
-              <span id="viewer-class" class="text-xs font-bold bg-sky-100 text-sky-700 px-2.5 py-1 rounded-full"></span>
-              <h2 id="viewer-title" class="text-2xl font-black text-slate-800 mt-2"></h2>
-              <p id="viewer-student" class="text-sm font-medium text-slate-500 mt-0.5"></p>
-            </div>
-            <button onclick="closeModal('exhibit-viewer-modal')" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-full font-bold text-slate-600">✕</button>
-          </div>
-
-          <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <h4 class="text-xs font-bold text-slate-400 mb-1">תקציר הלמידה:</h4>
-            <p id="viewer-summary" class="text-slate-700 text-sm leading-relaxed"></p>
-          </div>
-
-          <div id="active-hotspot-box" class="mt-4 hidden bg-amber-50 border border-amber-200 p-4 rounded-2xl transition-all">
-            <div class="flex items-center gap-2 text-amber-800 font-bold text-sm mb-1">
-              <span>📍</span> <span id="hs-detail-title">הסבר מתוך התמונה</span>
-            </div>
-            <p id="hs-detail-text" class="text-slate-700 text-sm leading-relaxed"></p>
-            <div id="hs-detail-audio" class="mt-3 hidden"></div>
-            <a id="hs-detail-link" href="#" target="_blank" class="mt-3 hidden inline-flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600">
-              🔗 פתח קישור להרחבה
-            </a>
-          </div>
-          <p class="mt-4 text-xs text-slate-400 text-center">💡 לחצו על הנקודות המהבהבות על גבי התמונה כדי לגלות הסברים!</p>
-        </div>
-
-        <button onclick="closeModal('exhibit-viewer-modal')" class="mt-6 w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl">
-          חזרה לסיור ב-360
-        </button>
-      </div>
+  <!-- ==================== מודאל קוד גישה להעלאה (0000) ==================== -->
+  <div id="upload-gate-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 shadow-2xl text-center">
+      <div class="text-3xl mb-1">🔒</div>
+      <h3 class="text-lg font-black text-slate-800">קוד גישה להעלאת תוצר</h3>
+      <p class="text-xs text-slate-500 mb-3">הקלידו את קוד הכיתה כדי להעלות תמונה</p>
+      <input type="password" inputmode="numeric" id="upload-pin-input" placeholder="••••" class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2 mb-3">
+      <button onclick="verifyUploadPin()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl">המשך להעלאה</button>
+      <button onclick="closeModal('upload-gate-modal')" class="mt-2 text-xs text-slate-400">ביטול</button>
     </div>
   </div>
 
-  <!-- מודאל 2: העלאת תוצר ע"י תלמיד -->
+  <!-- ==================== מודאל העלאת תוצר ע"י תלמיד ==================== -->
   <div id="upload-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
@@ -147,76 +168,71 @@
             <input type="text" id="up-class" required placeholder="למשל: ה'2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
           </div>
         </div>
-
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">נושא / כותרת היצירה *</label>
           <input type="text" id="up-title" required placeholder="מה רואים בתמונה?" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
         </div>
-
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">באיזה אזור תרצו להציג? (אופציונלי)</label>
+          <label class="block text-xs font-bold text-slate-600 mb-1">באיזה אזור תרצו להציג?</label>
           <select id="up-zone" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"></select>
         </div>
-
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">תקציר והסבר על מה שלמדתי *</label>
           <textarea id="up-summary" rows="3" required placeholder="ספרו בקצרה מה חקרתם ומה גיליתם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></textarea>
         </div>
-
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">בחירת תמונה (כל גודל - המערכת תתאים אוטומטית) *</label>
+          <label class="block text-xs font-bold text-slate-600 mb-1">בחירת תמונה *</label>
           <input type="file" id="up-file" accept="image/*" required class="w-full text-sm text-slate-500 file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700">
         </div>
-
-        <button type="submit" id="up-submit-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition">
+        <button type="submit" id="up-submit-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg">
           🚀 שלח לאישור מנהלי המוזיאון
         </button>
       </form>
     </div>
   </div>
 
-  <!-- מודאל 3: התחברות ולוח ניהול -->
+  <!-- ==================== מודאל התחברות ולוח ניהול ==================== -->
   <div id="login-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
       <h2 class="text-xl font-black text-slate-800 mb-1">🔐 כניסת צוות ומנהלי מוזיאון</h2>
       <p class="text-xs text-slate-500 mb-4">הזינו את קוד הגישה האישי שקיבלתם</p>
-      <input type="password" id="login-code-input" placeholder="הקלידו קוד..." class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2.5 mb-3">
+      <input type="password" inputmode="numeric" id="login-code-input" placeholder="הקלידו קוד..." class="w-full text-center text-2xl tracking-widest border border-slate-200 rounded-xl py-2.5 mb-3">
       <button onclick="performLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl">כניסה למערכת</button>
-      <button onclick="closeModal('login-modal')" class="mt-2 text-xs text-slate-400 hover:underline">ביטול</button>
+      <button onclick="closeModal('login-modal')" class="mt-2 text-xs text-slate-400">ביטול</button>
     </div>
   </div>
 
   <div id="admin-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-      <div class="p-5 bg-indigo-600 text-white flex justify-between items-center">
+      <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
         <div>
-          <h2 class="text-xl font-black">🏛️ חדר הבקרה של המוזיאון</h2>
+          <h2 class="text-lg font-black">🏛️ חדר הבקרה של המוזיאון</h2>
           <p id="admin-role-label" class="text-xs text-indigo-200"></p>
         </div>
         <div class="flex gap-2">
-          <button onclick="logoutAdmin()" class="bg-indigo-500 hover:bg-indigo-400 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
-          <button onclick="closeModal('admin-modal')" class="bg-white/20 hover:bg-white/30 w-8 h-8 rounded-full font-bold">✕</button>
+          <button onclick="logoutAdmin()" class="bg-indigo-500 px-3 py-1.5 rounded-xl text-xs font-bold">התנתק</button>
+          <button onclick="closeModal('admin-modal')" class="bg-white/20 w-8 h-8 rounded-full font-bold">✕</button>
         </div>
       </div>
 
-      <div class="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2 text-sm font-bold overflow-x-auto">
-        <button onclick="switchAdminTab('pending')" class="admin-tab px-4 py-2 rounded-t-xl bg-white text-indigo-600 border-t border-x border-slate-200 whitespace-nowrap" data-tab="pending">⏳ ממתינים לאישור</button>
-        <button onclick="switchAdminTab('approved')" class="admin-tab px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="approved">🖼️ מוצגים ונקודות חמות</button>
-        <button onclick="switchAdminTab('zones')" class="admin-tab px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="zones">🗺️ ניהול אזורים</button>
-        <button id="tab-staff-btn" onclick="switchAdminTab('staff')" class="admin-tab hidden px-4 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="staff">👑 מינוי מנהלים ומורים</button>
+      <div class="flex border-b border-slate-200 bg-slate-50 px-3 pt-2 gap-1.5 text-xs md:text-sm font-bold overflow-x-auto">
+        <button onclick="switchAdminTab('pending')" class="admin-tab px-3 py-2 rounded-t-xl bg-white text-indigo-600 border-t border-x border-slate-200 whitespace-nowrap" data-tab="pending">⏳ ממתינים לאישור</button>
+        <button onclick="switchAdminTab('approved')" class="admin-tab px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="approved">🖼️ מוצגים ונקודות חמות</button>
+        <button onclick="switchAdminTab('zones')" class="admin-tab px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="zones">🗺️ חדרים וכיתובים</button>
+        <button id="tab-staff-btn" onclick="switchAdminTab('staff')" class="admin-tab hidden px-3 py-2 rounded-t-xl text-slate-500 whitespace-nowrap" data-tab="staff">👑 צוות והגדרות לובי</button>
       </div>
 
-      <div id="admin-content" class="p-6 overflow-y-auto flex-1 space-y-4"></div>
+      <div id="admin-content" class="p-5 overflow-y-auto flex-1 space-y-4"></div>
     </div>
   </div>
 
-  <!-- מודאל 4: עורך נקודות חמות -->
+  <!-- ==================== מודאל עורך נקודות חמות ==================== -->
   <div id="hotspot-editor-modal" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col md:flex-row">
       <div class="md:w-3/5 bg-slate-100 p-4 flex flex-col items-center justify-center">
-        <p class="text-xs font-bold text-indigo-600 mb-2">👆 לחצו בכל מקום על התמונה כדי להוסיף נקודה חמה חדשה</p>
+        <p class="text-xs font-bold text-indigo-600 mb-2">👆 לחצו בכל מקום על התמונה כדי למקם נקודה חמה במרחב ה-360</p>
         <div class="relative inline-block cursor-crosshair" onclick="addHotspotAtClick(event)">
-          <img id="editor-img" src="" class="max-h-[65vh] w-auto rounded-2xl shadow">
+          <img id="editor-img" src="" class="max-h-[60vh] w-auto rounded-2xl shadow">
           <div id="editor-hotspots-layer" class="absolute inset-0 pointer-events-none"></div>
         </div>
       </div>
@@ -227,7 +243,7 @@
             <h3 class="font-black text-lg text-slate-800">📍 עורך נקודות חמות</h3>
             <button onclick="closeModal('hotspot-editor-modal')" class="bg-slate-100 w-8 h-8 rounded-full font-bold">✕</button>
           </div>
-          <div id="editor-hotspots-list" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
+          <div id="editor-hotspots-list" class="space-y-3 max-h-[52vh] overflow-y-auto pr-1"></div>
         </div>
 
         <button onclick="saveHotspotsToServer()" id="save-hs-btn" class="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow">
@@ -237,44 +253,104 @@
     </div>
   </div>
 
-  <!-- מודאל 5: מחולל ברקוד QR -->
-  <div id="qr-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+  <!-- ==================== מודאל ברקוד QR תקין וברור ==================== -->
+  <div id="qr-modal" class="fixed inset-0 z-40 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
-      <h3 class="text-xl font-black text-slate-800 mb-1">📱 כניסה מהירה למוזיאון</h3>
-      <p class="text-xs text-slate-500 mb-4">סרקו עם מצלמת הטלפון או הטאבלט</p>
-      <div id="qrcode-box" class="flex justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-4"></div>
+      <h3 class="text-xl font-black text-slate-800 mb-1">📱 סריקה מהירה לכניסה למוזיאון</h3>
+      <p class="text-xs text-slate-500 mb-4">כוונו את מצלמת הטלפון אל הברקוד</p>
+      <div class="flex justify-center p-4 bg-white rounded-2xl border-2 border-slate-100 shadow-inner mb-3">
+        <img id="qr-image-el" src="" alt="QR Code" class="w-52 h-52 object-contain">
+      </div>
+      <p id="qr-url-label" class="text-[11px] text-slate-400 break-all mb-4" dir="ltr"></p>
       <button onclick="closeModal('qr-modal')" class="w-full bg-slate-800 text-white font-bold py-2.5 rounded-xl">סגור</button>
     </div>
   </div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyYbvMZRbDzoW6gu00cF-rlUbiCsxcuKO2keOHXS86Vl0STIViAXEjBU-D9jNAjRjwR/exec";
+    const UPLOAD_PIN = "0000";
 
     let museumData = {
-      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "האגף המרכזי", themeColor: "#0ea5e9", status: "approved" }],
+      zones: [{ id: "zone_main", name: "אגף החקר והגילוי", description: "", themeColor: "#0ea5e9", status: "approved", welcomeText: "" }],
       exhibits: [],
-      staff: []
+      staff: [],
+      settings: {}
     };
     let currentUser = null;
-    let currentView = "lobby";
+    let currentView = "lobby"; // "lobby", zoneId, או "exhibit"
+    let activeZoneId = null;
+    let activeExhibit = null;
+    let currentFov = 80;
+
     let editingExhibitId = null;
     let draftHotspots = [];
     let mediaRecorder = null;
     let audioChunks = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-      initPanoramas();
-      // פותח את חדר הכניסה מיד תוך מקסימום 1.5 שניות כדי שהמשתמש לעולם לא ייתקע במסך טעינה
+      initGalleryPanorama();
       setTimeout(() => {
         const loader = document.getElementById("loader");
         if (loader && !loader.classList.contains("hidden")) {
           loader.classList.add("hidden");
           renderZonesNav();
-          enterLobby();
+          enterLobby(true);
         }
-      }, 1500);
+      }, 1200);
       refreshData();
+      setupPinchAndWheelZoom();
     });
+
+    // תמיכה בזום פנימה/החוצה עם גלגלת עכבר או צביטת אצבעות בטלפון
+    function setupPinchAndWheelZoom() {
+      window.addEventListener("wheel", e => {
+        if (currentView === "exhibit") adjustZoom(e.deltaY > 0 ? 4 : -4);
+      }, { passive: true });
+
+      let initialDist = 0;
+      window.addEventListener("touchstart", e => {
+        if (e.touches.length === 2) {
+          initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        }
+      }, { passive: true });
+      window.addEventListener("touchmove", e => {
+        if (e.touches.length === 2 && currentView === "exhibit") {
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const diff = initialDist - dist;
+          if (Math.abs(diff) > 10) {
+            adjustZoom(diff * 0.08);
+            initialDist = dist;
+          }
+        }
+      }, { passive: true });
+    }
+
+    function adjustZoom(deltaFov) {
+      const cam = document.getElementById("main-camera");
+      currentFov = Math.min(105, Math.max(30, currentFov + (deltaFov * (Math.abs(deltaFov) < 1 ? 25 : 1))));
+      cam.setAttribute("fov", currentFov);
+    }
+
+    function resetCameraView() {
+      currentFov = 80;
+      const cam = document.getElementById("main-camera");
+      cam.setAttribute("fov", 80);
+      if (cam.components["look-controls"]) {
+        cam.components["look-controls"].pitchObject.rotation.x = 0;
+        cam.components["look-controls"].yawObject.rotation.y = 0;
+      }
+    }
+
+    // אפקט מעבר קולנועי בין חדרים
+    function transitionScene(callback) {
+      const container = document.getElementById("scene-container");
+      container.classList.add("scene-transitioning");
+      setTimeout(() => {
+        resetCameraView();
+        callback();
+        setTimeout(() => container.classList.remove("scene-transitioning"), 80);
+      }, 320);
+    }
 
     async function apiPost(payload) {
       const res = await fetch(API_URL, {
@@ -293,206 +369,247 @@
         if (data && data.zones) {
           museumData = data;
           renderZonesNav();
-          if (currentView === "lobby") enterLobby();
-          else enterZone(currentView);
+          if (currentView === "lobby") enterLobby(true);
+          else if (currentView !== "exhibit") enterZone(currentView, true);
           if (currentUser) renderAdminContent("pending");
         }
       } catch (e) {
-        console.warn("טעינת רקע מול הדרייב:", e);
+        console.warn("טעינת נתונים:", e);
       } finally {
         document.getElementById("loader").classList.add("hidden");
       }
     }
 
-    function initPanoramas() {
-      const lobbyImg = document.getElementById("lobby-pano");
-      const testImg = new Image();
-      testImg.onload = () => { lobbyImg.src = "lobby-360.jpg"; };
-      testImg.onerror = () => {
-        const c1 = document.createElement("canvas");
-        c1.width = 2048; c1.height = 1024;
-        const ctx1 = c1.getContext("2d");
-        const grad1 = ctx1.createLinearGradient(0, 0, 0, 1024);
-        grad1.addColorStop(0, "#0f172a");
-        grad1.addColorStop(0.35, "#0284c7");
-        grad1.addColorStop(0.55, "#e0f2fe");
-        grad1.addColorStop(0.75, "#fef3c7");
-        grad1.addColorStop(1, "#cbd5e1");
-        ctx1.fillStyle = grad1;
-        ctx1.fillRect(0, 0, 2048, 1024);
-        ctx1.strokeStyle = "rgba(255,255,255,0.28)";
-        ctx1.lineWidth = 3;
-        for (let x = 0; x < 2048; x += 128) {
-          ctx1.beginPath(); ctx1.arc(x + 64, 520, 180, Math.PI, 0); ctx1.stroke();
-          ctx1.fillStyle = "rgba(255,255,255,0.08)"; ctx1.fillRect(x + 56, 520, 16, 400);
-        }
-        lobbyImg.src = c1.toDataURL("image/jpeg", 0.9);
-      };
-      testImg.src = "lobby-360.jpg";
-
+    function initGalleryPanorama() {
       const c2 = document.createElement("canvas");
       c2.width = 2048; c2.height = 1024;
       const ctx2 = c2.getContext("2d");
       const grad2 = ctx2.createLinearGradient(0, 0, 0, 1024);
-      grad2.addColorStop(0, "#e0f2fe");
+      grad2.addColorStop(0, "#dbeafe");
       grad2.addColorStop(0.5, "#f8fafc");
-      grad2.addColorStop(1, "#e2e8f0");
+      grad2.addColorStop(1, "#cbd5e1");
       ctx2.fillStyle = grad2;
       ctx2.fillRect(0, 0, 2048, 1024);
-      ctx2.strokeStyle = "rgba(14, 165, 233, 0.14)";
-      ctx2.lineWidth = 2;
-      for (let x = 0; x < 2048; x += 64) {
-        ctx2.beginPath(); ctx2.moveTo(x, 0); ctx2.lineTo(x, 1024); ctx2.stroke();
-      }
       document.getElementById("gallery-pano").src = c2.toDataURL("image/jpeg", 0.9);
     }
 
+    function getLobbyImageUrl() {
+      if (museumData.settings && museumData.settings.lobbyImage) {
+        return museumData.settings.lobbyImage;
+      }
+      // טוען את התמונה שהועלתה ל-GitHub (lobby-360.jpg) עם מניעת cache
+      return "lobby-360.jpg?v=" + Math.floor(Date.now() / 60000);
+    }
+
+    function toggleMainMenu() {
+      document.getElementById("main-dropdown-menu").classList.toggle("hidden");
+    }
+
     function renderZonesNav() {
-      const nav = document.getElementById("zones-nav");
+      const list = document.getElementById("zones-nav-list");
       const activeZones = museumData.zones.filter(z => z.status === "approved");
-      nav.innerHTML = `<button onclick="enterLobby()" class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap ${currentView === 'lobby' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">🏛️ לובי ראשי</button>` +
+      list.innerHTML = `<button onclick="toggleMainMenu(); enterLobby();" class="w-full text-right px-3 py-1.5 rounded-xl text-xs font-bold ${currentView === 'lobby' ? 'bg-sky-100 text-sky-800' : 'hover:bg-slate-100'}">🏛️ חדר הכניסה הראשי</button>` +
         activeZones.map(z => `
-          <button onclick="enterZone('${z.id}')" class="px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition ${currentView === z.id ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
-            ${z.name}
+          <button onclick="toggleMainMenu(); enterZone('${z.id}');" class="w-full text-right px-3 py-1.5 rounded-xl text-xs font-bold ${currentView === z.id ? 'bg-sky-100 text-sky-800' : 'hover:bg-slate-100'}">
+            🚪 ${z.name}
           </button>
         `).join("");
 
       const select = document.getElementById("up-zone");
-      select.innerHTML = `<option value="">תנו למנהלי המוזיאון לבחור עבורי</option>` +
+      select.innerHTML = `<option value="">בחירה אוטומטית ע"י צוות המוזיאון</option>` +
         activeZones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
     }
 
-    function enterLobby() {
-      currentView = "lobby";
-      renderZonesNav();
-      document.getElementById("current-location-badge").innerText = "🏛️ חדר הכניסה הראשי";
-      document.getElementById("museum-sky").setAttribute("src", "#lobby-pano");
-
-      const container = document.getElementById("room-objects");
-      container.innerHTML = "";
-
-      const titleEntity = document.createElement("a-entity");
-      titleEntity.setAttribute("position", "0 3.6 -6");
-      titleEntity.innerHTML = `
-        <a-plane width="5.6" height="1.35" color="#0f172a" opacity="0.82"></a-plane>
-        <a-text value="ברוכים הבאים למוזיאון הפיזיטלי 360" align="center" width="8.5" color="#ffffff" position="0 0.22 0.05"></a-text>
-        <a-text value="הסתובבו במרחב ובחרו שער כניסה לאגפי הלמידה" align="center" width="5.2" color="#38bdf8" position="0 -0.25 0.05"></a-text>
-      `;
-      container.appendChild(titleEntity);
-
-      const activeZones = museumData.zones.filter(z => z.status === "approved");
-      const radius = 6.5;
-      activeZones.forEach((zone, idx) => {
-        const angle = ((idx - (activeZones.length - 1) / 2) * 0.55) - Math.PI / 2;
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
-        const rotY = (-angle * 180 / Math.PI) - 90;
-
-        const portal = document.createElement("a-entity");
-        portal.setAttribute("position", `${x} 1.7 ${z}`);
-        portal.setAttribute("rotation", `0 ${rotY} 0`);
-        portal.classList.add("clickable");
-        portal.onclick = () => enterZone(zone.id);
-
-        const count = museumData.exhibits.filter(e => e.zoneId === zone.id && e.status === "approved").length;
-
-        portal.innerHTML = `
-          <a-ring radius-inner="1.05" radius-outer="1.22" color="${zone.themeColor || '#0ea5e9'}" class="clickable"></a-ring>
-          <a-circle radius="1.04" color="#ffffff" opacity="0.93" class="clickable"></a-circle>
-          <a-text value="🚪 כניסה לאגף" align="center" width="3.5" color="#64748b" position="0 0.45 0.05"></a-text>
-          <a-text value="${zone.name}" align="center" width="4.8" color="#0f172a" position="0 0.05 0.05"></a-text>
-          <a-text value="${count} מוצגים בתערוכה" align="center" width="3.2" color="${zone.themeColor || '#0284c7'}" position="0 -0.4 0.05"></a-text>
-        `;
-        container.appendChild(portal);
-      });
-    }
-
-    function enterZone(zoneId) {
-      const zone = museumData.zones.find(z => z.id === zoneId);
-      if (!zone) return enterLobby();
-
-      currentView = zoneId;
-      renderZonesNav();
-      document.getElementById("current-location-badge").innerText = "🖼️ " + zone.name;
-      document.getElementById("museum-sky").setAttribute("src", "#gallery-pano");
-
-      const container = document.getElementById("room-objects");
-      container.innerHTML = "";
-
-      const zoneExhibits = museumData.exhibits.filter(e => e.zoneId === zoneId && e.status === "approved");
-      const radius = 7.5;
-
-      const backGate = document.createElement("a-entity");
-      backGate.setAttribute("position", `0 1.6 ${radius}`);
-      backGate.setAttribute("rotation", "0 180 0");
-      backGate.classList.add("clickable");
-      backGate.onclick = () => enterLobby();
-      backGate.innerHTML = `
-        <a-box width="2.2" height="1.1" depth="0.1" color="#0f172a" class="clickable"></a-box>
-        <a-text value="🏛️ חזרה ללובי הראשי" align="center" width="4.2" color="#ffffff" position="0 0 0.08"></a-text>
-      `;
-      container.appendChild(backGate);
-
-      if (zoneExhibits.length === 0) {
-        const emptySign = document.createElement("a-entity");
-        emptySign.setAttribute("position", "0 2 -5");
-        emptySign.innerHTML = `<a-text value="אגף זה ממתין ליצירות הראשונות שלכם!" align="center" width="6" color="#334155"></a-text>`;
-        container.appendChild(emptySign);
-        return;
+    function showRoomWelcome(text) {
+      const banner = document.getElementById("room-welcome-banner");
+      if (text && String(text).trim()) {
+        document.getElementById("room-welcome-text").innerText = text;
+        banner.classList.remove("hidden");
+      } else {
+        banner.classList.add("hidden");
       }
-
-      zoneExhibits.forEach((ex, idx) => {
-        const angle = ((idx / zoneExhibits.length) * Math.PI * 1.6) - (Math.PI * 1.3);
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
-        const rotY = (-angle * 180 / Math.PI) - 90;
-        const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
-
-        const frame = document.createElement("a-entity");
-        frame.setAttribute("position", `${x} 2.1 ${z}`);
-        frame.setAttribute("rotation", `0 ${rotY} 0`);
-        frame.classList.add("clickable");
-        frame.onclick = () => openExhibitViewer(ex.id);
-
-        frame.innerHTML = `
-          <a-box width="3.1" height="2.3" depth="0.12" color="#ffffff" class="clickable"></a-box>
-          <a-box width="3.2" height="2.4" depth="0.08" position="0 0 -0.03" color="${zone.themeColor || '#0ea5e9'}"></a-box>
-          <a-image src="${ex.imageUrl}" width="2.85" height="2.05" position="0 0 0.07" crossorigin="anonymous" class="clickable"></a-image>
-          <a-plane width="3.1" height="0.65" position="0 -1.55 0.02" color="#0f172a" opacity="0.9" class="clickable"></a-plane>
-          <a-text value="${ex.title}" align="center" width="4.5" color="#ffffff" position="0 -1.42 0.05"></a-text>
-          <a-text value="${ex.studentName} (${ex.studentClass}) • 📍 ${hsCount} נקודות חמות" align="center" width="3.4" color="#38bdf8" position="0 -1.7 0.05"></a-text>
-        `;
-        container.appendChild(frame);
-      });
     }
 
-    function openExhibitViewer(exhibitId) {
+    // ==================== 1. חדר הכניסה הראשי (נקי, רק תמונת הלובי 360 + שערי מעבר) ====================
+    function enterLobby(skipAnim = false) {
+      const render = () => {
+        currentView = "lobby";
+        activeExhibit = null;
+        renderZonesNav();
+        document.getElementById("inside-exhibit-hud").classList.add("hidden");
+        document.getElementById("active-hotspot-box").classList.add("hidden");
+        document.getElementById("museum-floor").setAttribute("visible", "true");
+        document.getElementById("current-location-badge").innerText = "חדר הכניסה הראשי";
+
+        showRoomWelcome(museumData.settings ? museumData.settings.lobbyWelcome : "");
+
+        const sky = document.getElementById("museum-sky");
+        sky.setAttribute("src", getLobbyImageUrl());
+
+        const container = document.getElementById("room-objects");
+        container.innerHTML = "";
+
+        // רק שערי הכניסה לאגפים (ללא שלטים מיותרים!)
+        const activeZones = museumData.zones.filter(z => z.status === "approved");
+        const radius = 6.5;
+        activeZones.forEach((zone, idx) => {
+          const angle = ((idx - (activeZones.length - 1) / 2) * 0.58) - Math.PI / 2;
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          const rotY = (-angle * 180 / Math.PI) - 90;
+
+          const portal = document.createElement("a-entity");
+          portal.setAttribute("position", `${x} 1.75 ${z}`);
+          portal.setAttribute("rotation", `0 ${rotY} 0`);
+          portal.classList.add("clickable");
+          portal.onclick = () => enterZone(zone.id);
+
+          const count = museumData.exhibits.filter(e => e.zoneId === zone.id && e.status === "approved").length;
+
+          portal.innerHTML = `
+            <a-ring radius-inner="1.05" radius-outer="1.22" color="${zone.themeColor || '#0ea5e9'}" class="clickable"></a-ring>
+            <a-circle radius="1.04" color="#ffffff" opacity="0.92" class="clickable"></a-circle>
+            <a-text value="🚪 כניסה לאגף" align="center" width="3.4" color="#64748b" position="0 0.42 0.05"></a-text>
+            <a-text value="${zone.name}" align="center" width="4.6" color="#0f172a" position="0 0.05 0.05"></a-text>
+            <a-text value="${count} יצירות" align="center" width="3.2" color="${zone.themeColor || '#0284c7'}" position="0 -0.38 0.05"></a-text>
+          `;
+          container.appendChild(portal);
+        });
+      };
+      if (skipAnim) render();
+      else transitionScene(render);
+    }
+
+    // ==================== 2. אולם תצוגה (אזור) ====================
+    function enterZone(zoneId, skipAnim = false) {
+      const zone = museumData.zones.find(z => z.id === zoneId);
+      if (!zone) return enterLobby(skipAnim);
+
+      const render = () => {
+        currentView = zoneId;
+        activeZoneId = zoneId;
+        activeExhibit = null;
+        renderZonesNav();
+        document.getElementById("inside-exhibit-hud").classList.add("hidden");
+        document.getElementById("active-hotspot-box").classList.add("hidden");
+        document.getElementById("museum-floor").setAttribute("visible", "true");
+        document.getElementById("current-location-badge").innerText = zone.name;
+        document.getElementById("museum-sky").setAttribute("src", "#gallery-pano");
+
+        showRoomWelcome(zone.welcomeText || "");
+
+        const container = document.getElementById("room-objects");
+        container.innerHTML = "";
+
+        const radius = 7.5;
+        const backGate = document.createElement("a-entity");
+        backGate.setAttribute("position", `0 1.6 ${radius}`);
+        backGate.setAttribute("rotation", "0 180 0");
+        backGate.classList.add("clickable");
+        backGate.onclick = () => enterLobby();
+        backGate.innerHTML = `
+          <a-box width="2.3" height="1.0" depth="0.1" color="#0f172a" class="clickable"></a-box>
+          <a-text value="🏛️ חזרה לכניסה הראשית" align="center" width="4.2" color="#ffffff" position="0 0 0.08"></a-text>
+        `;
+        container.appendChild(backGate);
+
+        const zoneExhibits = museumData.exhibits.filter(e => e.zoneId === zoneId && e.status === "approved");
+        if (zoneExhibits.length === 0) {
+          const emptySign = document.createElement("a-entity");
+          emptySign.setAttribute("position", "0 2 -5");
+          emptySign.innerHTML = `<a-text value="האגף מוכן! העלו תוצרים כדי למלא אותו" align="center" width="5.5" color="#334155"></a-text>`;
+          container.appendChild(emptySign);
+          return;
+        }
+
+        zoneExhibits.forEach((ex, idx) => {
+          const angle = ((idx / zoneExhibits.length) * Math.PI * 1.6) - (Math.PI * 1.3);
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          const rotY = (-angle * 180 / Math.PI) - 90;
+          const hsCount = JSON.parse(ex.hotspotsJson || "[]").length;
+
+          const frame = document.createElement("a-entity");
+          frame.setAttribute("position", `${x} 2.1 ${z}`);
+          frame.setAttribute("rotation", `0 ${rotY} 0`);
+          frame.classList.add("clickable");
+          frame.onclick = () => enterExhibit360(ex.id);
+
+          frame.innerHTML = `
+            <a-box width="3.1" height="2.3" depth="0.12" color="#ffffff" class="clickable"></a-box>
+            <a-box width="3.2" height="2.4" depth="0.08" position="0 0 -0.03" color="${zone.themeColor || '#0ea5e9'}"></a-box>
+            <a-image src="${ex.imageUrl}" width="2.85" height="2.05" position="0 0 0.07" crossorigin="anonymous" class="clickable"></a-image>
+            <a-plane width="3.1" height="0.7" position="0 -1.58 0.02" color="#0f172a" opacity="0.92" class="clickable"></a-plane>
+            <a-text value="${ex.title}" align="center" width="4.4" color="#ffffff" position="0 -1.42 0.05"></a-text>
+            <a-text value="👆 לחץ להיכנס לתוך התמונה 360° (${hsCount} נקודות)" align="center" width="3.3" color="#38bdf8" position="0 -1.72 0.05"></a-text>
+          `;
+          container.appendChild(frame);
+        });
+      };
+      if (skipAnim) render();
+      else transitionScene(render);
+    }
+
+    // ==================== 3. כניסה לתוך התמונה כמרחב 360 אימרסיבי! ====================
+    function enterExhibit360(exhibitId) {
       const ex = museumData.exhibits.find(e => e.id === exhibitId);
       if (!ex) return;
 
-      document.getElementById("viewer-img").src = ex.imageUrl;
-      document.getElementById("viewer-title").innerText = ex.title;
-      document.getElementById("viewer-student").innerText = `נוצר ע"י: ${ex.studentName}`;
-      document.getElementById("viewer-class").innerText = `כיתה ${ex.studentClass}`;
-      document.getElementById("viewer-summary").innerText = ex.summary;
-      document.getElementById("active-hotspot-box").classList.add("hidden");
+      transitionScene(() => {
+        currentView = "exhibit";
+        activeExhibit = ex;
+        document.getElementById("current-location-badge").innerText = `🌐 בתוך: ${ex.title} (${ex.studentName})`;
+        document.getElementById("inside-exhibit-hud").classList.remove("hidden");
+        document.getElementById("room-welcome-banner").classList.add("hidden");
+        document.getElementById("museum-floor").setAttribute("visible", "false");
 
-      const layer = document.getElementById("viewer-hotspots-layer");
-      const hotspots = JSON.parse(ex.hotspotsJson || "[]");
-      layer.innerHTML = hotspots.map((hs, idx) => `
-        <button onclick="showHotspotDetails(${idx}, '${ex.id}')"
-          style="left: ${hs.x}%; top: ${hs.y}%;"
-          class="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-sky-500 text-white font-black text-xs border-2 border-white shadow-lg pulse-ring flex items-center justify-center hover:scale-125 transition">
-          ${idx + 1}
-        </button>
-      `).join("");
+        // עוטף את כל הסצנה ב-360 מעלות בתמונת התלמיד!
+        const sky = document.getElementById("museum-sky");
+        sky.setAttribute("src", ex.imageUrl);
 
-      openModal("exhibit-viewer-modal");
+        const container = document.getElementById("room-objects");
+        container.innerHTML = "";
+
+        // מיקום הנקודות החמות כסמנים מרחפים בתוך מרחב ה-360!
+        const hotspots = JSON.parse(ex.hotspotsJson || "[]");
+        const radius = 8;
+        hotspots.forEach((hs, idx) => {
+          // ממיר קואורדינטות x,y (0-100%) למיקום תלת-ממדי סביב הצופה
+          const lon = ((hs.x / 100) - 0.5) * Math.PI * 1.8; // פריסה סביב שדה הראייה
+          const lat = (0.5 - (hs.y / 100)) * (Math.PI * 0.65);
+
+          const x = radius * Math.cos(lat) * Math.sin(lon);
+          const y = 1.6 + radius * Math.sin(lat);
+          const z = -radius * Math.cos(lat) * Math.cos(lon);
+          const rotY = (-lon * 180 / Math.PI);
+
+          const pin = document.createElement("a-entity");
+          pin.setAttribute("position", `${x} ${y} ${z}`);
+          pin.setAttribute("rotation", `0 ${rotY} 0`);
+          pin.classList.add("clickable");
+          pin.onclick = () => showHotspotIn360(idx);
+
+          pin.innerHTML = `
+            <a-ring radius-inner="0.38" radius-outer="0.52" color="#38bdf8" class="clickable"
+              animation="property: scale; to: 1.25 1.25 1.25; dir: alternate; dur: 900; loop: true"></a-ring>
+            <a-circle radius="0.36" color="#0284c7" class="clickable"></a-circle>
+            <a-text value="${idx + 1}" align="center" width="6" color="#ffffff" position="0 0 0.05"></a-text>
+            <a-plane width="2.2" height="0.45" position="0 -0.65 0" color="#0f172a" opacity="0.85" class="clickable"></a-plane>
+            <a-text value="${hs.title || 'נקודה ' + (idx + 1)}" align="center" width="3.6" color="#ffffff" position="0 -0.65 0.04"></a-text>
+          `;
+          container.appendChild(pin);
+        });
+      });
     }
 
-    function showHotspotDetails(idx, exhibitId) {
-      const ex = museumData.exhibits.find(e => e.id === exhibitId);
-      const hs = JSON.parse(ex.hotspotsJson || "[]")[idx];
+    function exitExhibitToZone() {
+      if (activeZoneId) enterZone(activeZoneId);
+      else enterLobby();
+    }
+
+    function showHotspotIn360(idx) {
+      if (!activeExhibit) return;
+      const hs = JSON.parse(activeExhibit.hotspotsJson || "[]")[idx];
       if (!hs) return;
 
       document.getElementById("active-hotspot-box").classList.remove("hidden");
@@ -502,10 +619,15 @@
       const audioDiv = document.getElementById("hs-detail-audio");
       if (hs.audioUrl) {
         audioDiv.classList.remove("hidden");
-        audioDiv.innerHTML = `<audio controls autoplay src="${hs.audioUrl}" class="w-full h-9"></audio>`;
+        audioDiv.innerHTML = "";
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.className = "w-full h-9";
+        audio.src = hs.audioUrl;
+        audioDiv.appendChild(audio);
+        audio.play().catch(() => {});
       } else {
         audioDiv.classList.add("hidden");
-        audioDiv.innerHTML = "";
       }
 
       const linkEl = document.getElementById("hs-detail-link");
@@ -515,6 +637,28 @@
       } else {
         linkEl.classList.add("hidden");
       }
+    }
+
+    function openExhibitInfoCard() {
+      if (!activeExhibit) return;
+      document.getElementById("info-class").innerText = `כיתה ${activeExhibit.studentClass}`;
+      document.getElementById("info-title").innerText = activeExhibit.title;
+      document.getElementById("info-student").innerText = `יוצר/ת: ${activeExhibit.studentName}`;
+      document.getElementById("info-summary").innerText = activeExhibit.summary;
+      openModal("exhibit-info-modal");
+    }
+
+    // ==================== 4. העלאת תוצרים עם קוד 0000 ====================
+    function requestStudentUpload() {
+      document.getElementById("upload-pin-input").value = "";
+      openModal("upload-gate-modal");
+    }
+
+    function verifyUploadPin() {
+      const pin = document.getElementById("upload-pin-input").value.trim();
+      if (pin !== UPLOAD_PIN) return alert("❌ קוד שגוי! נסו שוב.");
+      closeModal("upload-gate-modal");
+      openModal("upload-modal");
     }
 
     function submitStudentWork(e) {
@@ -531,7 +675,7 @@
         const img = new Image();
         img.onload = async function() {
           const canvas = document.createElement("canvas");
-          const MAX_DIM = 1400;
+          const MAX_DIM = 1600;
           let w = img.width, h = img.height;
           if (w > MAX_DIM || h > MAX_DIM) {
             if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
@@ -539,7 +683,7 @@
           }
           canvas.width = w; canvas.height = h;
           canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          const compressedData = canvas.toDataURL("image/jpeg", 0.82);
+          const compressedData = canvas.toDataURL("image/jpeg", 0.85);
 
           await apiPost({
             action: "upload_exhibit",
@@ -551,7 +695,7 @@
             imageData: compressedData
           });
 
-          alert("🎉 כל הכבוד! התמונה נשלחה בהצלחה וממתינה לאישור ומיקום של מנהלי המוזיאון.");
+          alert("🎉 היצירה נשלחה בהצלחה וממתינה לאישור מנהלי המוזיאון!");
           document.getElementById("upload-form").reset();
           btn.disabled = false;
           btn.innerText = "🚀 שלח לאישור מנהלי המוזיאון";
@@ -563,6 +707,7 @@
       reader.readAsDataURL(file);
     }
 
+    // ==================== 5. ניהול מוזיאון, החלפת לובי וכיתובי חדרים ====================
     function handleAdminClick() {
       if (currentUser) openModal("admin-modal");
       else openModal("login-modal");
@@ -580,7 +725,7 @@
       document.getElementById("login-code-input").value = "";
       closeModal("login-modal");
       document.getElementById("admin-btn-text").innerText = currentUser.name;
-      document.getElementById("admin-role-label").innerText = `מחובר בתור: ${currentUser.name} (${translateRole(currentUser.role)})`;
+      document.getElementById("admin-role-label").innerText = `מחובר: ${currentUser.name} (${translateRole(currentUser.role)})`;
       if (currentUser.role === "super_admin") document.getElementById("tab-staff-btn").classList.remove("hidden");
       else document.getElementById("tab-staff-btn").classList.add("hidden");
       openModal("admin-modal");
@@ -620,13 +765,13 @@
       if (tab === "pending") {
         const pending = museumData.exhibits.filter(e => e.status === "pending");
         const delPending = museumData.exhibits.filter(e => e.status === "delete_pending");
-        let html = `<h3 class="font-bold text-slate-700">מוצגים חדשים הממתינים למיקום ואישור (${pending.length})</h3>`;
+        let html = `<h3 class="font-bold text-slate-700">מוצגים חדשים הממתינים לאישור (${pending.length})</h3>`;
         if (pending.length === 0) html += `<p class="text-sm text-slate-400">אין כרגע מוצגים חדשים הממתינים לאישור.</p>`;
 
         pending.forEach(ex => {
           html += `
             <div class="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center bg-slate-50">
-              <img src="${ex.imageUrl}" class="w-28 h-28 object-cover rounded-xl shadow">
+              <img src="${ex.imageUrl}" class="w-24 h-24 object-cover rounded-xl shadow">
               <div class="flex-1">
                 <h4 class="font-bold text-slate-800">${ex.title} <span class="text-xs text-slate-500">(${ex.studentName} - ${ex.studentClass})</span></h4>
                 <p class="text-xs text-slate-600 mt-1">${ex.summary}</p>
@@ -634,8 +779,8 @@
                   <select id="assign-zone-${ex.id}" class="border rounded-lg px-2 py-1.5 text-xs bg-white">
                     ${activeZones.map(z => `<option value="${z.id}" ${z.id === ex.zoneId ? 'selected' : ''}>${z.name}</option>`).join("")}
                   </select>
-                  <button onclick="approveExhibit('${ex.id}')" class="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✅ אשר והצב באזור</button>
-                  <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📍 הוסף נקודות חמות</button>
+                  <button onclick="approveExhibit('${ex.id}')" class="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✅ אשר והצב באגף</button>
+                  <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📍 נקודות חמות</button>
                   <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">🗑️ מחק</button>
                 </div>
               </div>
@@ -649,8 +794,8 @@
               <div class="border border-rose-200 bg-rose-50 rounded-2xl p-3 flex justify-between items-center">
                 <span class="text-sm font-bold">${ex.title} (${ex.studentName})</span>
                 <div class="flex gap-2">
-                  <button onclick="confirmDeleteExhibit('${ex.id}')" class="bg-rose-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold">אשר מחיקה סופית</button>
-                  <button onclick="restoreExhibit('${ex.id}')" class="bg-white border text-xs px-3 py-1.5 rounded-lg font-bold">שחזר לתצוגה</button>
+                  <button onclick="confirmDeleteExhibit('${ex.id}')" class="bg-rose-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold">אשר מחיקה</button>
+                  <button onclick="restoreExhibit('${ex.id}')" class="bg-white border text-xs px-3 py-1.5 rounded-lg font-bold">שחזר</button>
                 </div>
               </div>`;
           });
@@ -660,18 +805,18 @@
 
       if (tab === "approved") {
         const approved = museumData.exhibits.filter(e => e.status === "approved");
-        box.innerHTML = `<h3 class="font-bold text-slate-700">כל המוצגים הפעילים במוזיאון (${approved.length})</h3>` +
+        box.innerHTML = `<h3 class="font-bold text-slate-700">כל המוצגים הפעילים (${approved.length})</h3>` +
           approved.map(ex => `
             <div class="border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src="${ex.imageUrl}" class="w-16 h-16 rounded-xl object-cover">
+                <img src="${ex.imageUrl}" class="w-14 h-14 rounded-xl object-cover">
                 <div>
                   <div class="font-bold text-sm">${ex.title}</div>
                   <div class="text-xs text-slate-500">${ex.studentName} (${ex.studentClass})</div>
                 </div>
               </div>
               <div class="flex gap-2">
-                <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-600 text-white text-xs font-bold px-3 py-2 rounded-xl">📍 ערוך נקודות חמות</button>
+                <button onclick="openHotspotEditor('${ex.id}')" class="bg-sky-600 text-white text-xs font-bold px-3 py-2 rounded-xl">📍 נקודות חמות</button>
                 <button onclick="requestDeleteExhibit('${ex.id}')" class="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl">${isTeacherOrSuper ? '🗑️ מחק' : '🗑️ בקש מחיקה'}</button>
               </div>
             </div>
@@ -680,25 +825,43 @@
 
       if (tab === "zones") {
         box.innerHTML = `
-          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <h4 class="font-bold text-sm mb-2">➕ הקמת אזור / אגף חדש במוזיאון</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <input type="text" id="new-zone-name" placeholder="שם האזור (למשל: אגף החלל)" class="border rounded-xl px-3 py-2 text-sm">
-              <input type="color" id="new-zone-color" value="#0ea5e9" class="h-10 w-full rounded-xl cursor-pointer">
-              <button onclick="createNewZone()" class="bg-indigo-600 text-white font-bold rounded-xl text-sm py-2">הקם אזור</button>
+          <!-- כיתוב לחדר הכניסה הראשי -->
+          <div class="bg-sky-50 p-4 rounded-2xl border border-sky-200">
+            <h4 class="font-bold text-sm text-sky-900 mb-2">🏛️ כיתוב בחדר הכניסה הראשי (הלובי)</h4>
+            <div class="flex gap-2">
+              <input type="text" id="lobby-welcome-input" value="${(museumData.settings && museumData.settings.lobbyWelcome) || ''}" placeholder="הזינו משפט פתיחה שיוצג בכניסה למוזיאון (או השאירו ריק)..." class="flex-1 border rounded-xl px-3 py-2 text-sm bg-white">
+              <button onclick="saveLobbyWelcome()" class="bg-sky-600 text-white font-bold px-4 rounded-xl text-xs">שמור כיתוב</button>
             </div>
           </div>
+
+          <!-- הקמת אזור חדש -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <h4 class="font-bold text-sm mb-2">➕ הקמת חדר / אגף חדש</h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input type="text" id="new-zone-name" placeholder="שם האגף" class="border rounded-xl px-3 py-2 text-sm bg-white">
+              <input type="text" id="new-zone-welcome" placeholder="כיתוב פתיחה בכניסה לחדר" class="border rounded-xl px-3 py-2 text-sm bg-white">
+              <input type="color" id="new-zone-color" value="#0ea5e9" class="h-10 w-full rounded-xl cursor-pointer">
+              <button onclick="createNewZone()" class="bg-indigo-600 text-white font-bold rounded-xl text-sm py-2">הקם חדר</button>
+            </div>
+          </div>
+
+          <!-- רשימת חדרים ועריכת הכיתוב של כל חדר -->
           <div class="space-y-2 mt-4">
             ${museumData.zones.map(z => `
-              <div class="border rounded-xl p-3 flex justify-between items-center ${z.status === 'delete_pending' ? 'bg-rose-50 border-rose-200' : ''}">
-                <div class="flex items-center gap-2">
-                  <span class="w-4 h-4 rounded-full" style="background:${z.themeColor}"></span>
-                  <span class="font-bold text-sm">${z.name}</span>
-                  ${z.status === 'delete_pending' ? '<span class="text-xs text-rose-600 font-bold">(ממתין לאישור מחיקה)</span>' : ''}
+              <div class="border rounded-2xl p-3 space-y-2 ${z.status === 'delete_pending' ? 'bg-rose-50 border-rose-200' : 'bg-white'}">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full" style="background:${z.themeColor}"></span>
+                    <span class="font-bold text-sm">${z.name}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="approveZoneDelete('${z.id}')" class="bg-rose-600 text-white text-xs px-3 py-1 rounded-lg">אשר מחיקה</button>` : ''}
+                    <button onclick="requestZoneDelete('${z.id}')" class="text-rose-600 text-xs font-bold px-2 py-1">מחק חדר</button>
+                  </div>
                 </div>
                 <div class="flex gap-2">
-                  ${z.status === 'delete_pending' && isTeacherOrSuper ? `<button onclick="approveZoneDelete('${z.id}')" class="bg-rose-600 text-white text-xs px-3 py-1 rounded-lg">אשר מחיקה</button>` : ''}
-                  <button onclick="requestZoneDelete('${z.id}')" class="text-rose-600 text-xs font-bold px-2 py-1">מחק אזור</button>
+                  <input type="text" id="zone-text-${z.id}" value="${z.welcomeText || ''}" placeholder="כיתוב בכניסה לחדר זה..." class="flex-1 border rounded-lg px-2.5 py-1 text-xs bg-slate-50">
+                  <button onclick="updateZoneText('${z.id}')" class="bg-slate-800 text-white text-xs px-3 py-1 rounded-lg font-bold">עדכן כיתוב</button>
                 </div>
               </div>
             `).join("")}
@@ -707,6 +870,16 @@
 
       if (tab === "staff" && currentUser.role === "super_admin") {
         box.innerHTML = `
+          <!-- החלפת תמונת חדר הכניסה הראשי מתוך האפליקציה -->
+          <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-200">
+            <h4 class="font-bold text-sm text-indigo-900 mb-1">🖼️ החלפת תמונת 360 של חדר הכניסה הראשי</h4>
+            <p class="text-xs text-indigo-700 mb-3">העלה תמונת פנורמה חדשה (2:1) והיא תוחלף מיד אצל כל המבקרים במוזיאון:</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="file" id="lobby-pano-upload" accept="image/*" class="text-xs bg-white p-2 rounded-xl border">
+              <button onclick="uploadNewLobbyPano(this)" class="bg-indigo-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl">החלף תמונת כניסה</button>
+            </div>
+          </div>
+
           <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200">
             <h4 class="font-bold text-sm text-amber-900 mb-2">👑 מינוי מורה או תלמיד מנהל מוזיאון</h4>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
@@ -733,6 +906,29 @@
       }
     }
 
+    async function saveLobbyWelcome() {
+      const value = document.getElementById("lobby-welcome-input").value;
+      await apiPost({ action: "update_settings", key: "lobbyWelcome", value });
+      alert("✅ כיתוב חדר הכניסה עודכן!");
+      refreshData();
+    }
+
+    function uploadNewLobbyPano(btn) {
+      const file = document.getElementById("lobby-pano-upload").files[0];
+      if (!file) return alert("בחר קובץ תמונה תחילה");
+      btn.disabled = true;
+      btn.innerText = "⏳ מעלה...";
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        await apiPost({ action: "update_settings", key: "lobbyImage", value: e.target.result });
+        btn.disabled = false;
+        btn.innerText = "החלף תמונת כניסה";
+        alert("🎉 תמונת חדר הכניסה הוחלפה בהצלחה!");
+        refreshData();
+      };
+      reader.readAsDataURL(file);
+    }
+
     async function approveExhibit(id) {
       const zoneId = document.getElementById(`assign-zone-${id}`).value;
       await apiPost({ action: "manage_exhibit", subAction: "approve_and_place", id, zoneId, userRole: currentUser.role });
@@ -753,9 +949,16 @@
     }
     async function createNewZone() {
       const name = document.getElementById("new-zone-name").value;
+      const welcomeText = document.getElementById("new-zone-welcome").value;
       const themeColor = document.getElementById("new-zone-color").value;
       if (!name) return;
-      await apiPost({ action: "manage_zone", subAction: "create", name, themeColor, createdBy: currentUser.name, userRole: currentUser.role });
+      await apiPost({ action: "manage_zone", subAction: "create", name, welcomeText, themeColor, createdBy: currentUser.name, userRole: currentUser.role });
+      refreshData();
+    }
+    async function updateZoneText(id) {
+      const welcomeText = document.getElementById(`zone-text-${id}`).value;
+      await apiPost({ action: "manage_zone", subAction: "update_text", id, welcomeText, userRole: currentUser.role });
+      alert("✅ כיתוב החדר עודכן!");
       refreshData();
     }
     async function requestZoneDelete(id) {
@@ -779,6 +982,7 @@
       refreshData();
     }
 
+    // ==================== 6. עורך נקודות חמות + הקלטת קול תקינה ====================
     function openHotspotEditor(exhibitId) {
       const ex = museumData.exhibits.find(e => e.id === exhibitId);
       if (!ex) return;
@@ -815,11 +1019,11 @@
           <input type="text" value="${hs.title}" onchange="draftHotspots[${idx}].title = this.value" placeholder="כותרת הנקודה" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
           <textarea rows="2" onchange="draftHotspots[${idx}].text = this.value" placeholder="הסבר שיופיע בלחיצה..." class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">${hs.text}</textarea>
           <input type="url" value="${hs.link || ''}" onchange="draftHotspots[${idx}].link = this.value" placeholder="קישור להרחבה (אופציונלי)" class="w-full border rounded-lg px-2.5 py-1 text-xs bg-white">
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <button type="button" onclick="toggleRecordAudio(${idx}, this)" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold px-3 py-1.5 rounded-lg">
               🎙️ ${hs.audioUrl ? 'הקלט מחדש' : 'הקלט הסבר קולי'}
             </button>
-            ${hs.audioUrl ? '<span class="text-xs text-emerald-600 font-bold">✅ קיים אודיו</span>' : ''}
+            ${hs.audioUrl ? `<audio controls src="${hs.audioUrl}" class="h-7 w-40"></audio>` : ''}
           </div>
         </div>
       `).join("");
@@ -828,28 +1032,32 @@
     async function toggleRecordAudio(idx, btn) {
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
-        btn.innerText = "⏳ שומר הקלטה...";
+        btn.innerText = "⏳ מעבד שמע...";
         return;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const res = await apiPost({ action: "upload_audio", audioData: reader.result });
-          if (res.success) {
-            draftHotspots[idx].audioUrl = res.url;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            // שומר מיד להשמעה חלקה + מגבה ב-Google Drive
+            draftHotspots[idx].audioUrl = base64Audio;
             renderEditorHotspots();
-          }
+            apiPost({ action: "upload_audio", audioData: base64Audio }).catch(() => {});
+          };
+          reader.readAsDataURL(blob);
+          stream.getTracks().forEach(t => t.stop());
         };
-        reader.readAsDataURL(blob);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorder.start();
-      btn.innerText = "⏹️ עצור הקלטה";
+        mediaRecorder.start();
+        btn.innerText = "⏹️ עצור הקלטה";
+      } catch (err) {
+        alert("לא ניתנה הרשאת מיקרופון בדפדפן.");
+      }
     }
 
     async function saveHotspotsToServer() {
@@ -863,14 +1071,12 @@
       refreshData();
     }
 
+    // ==================== 7. מחולל QR תקין וברור ====================
     function openQrModal() {
-      const box = document.getElementById("qrcode-box");
-      box.innerHTML = "";
-      new QRCode(box, {
-        text: window.location.origin + window.location.pathname,
-        width: 200,
-        height: 200
-      });
+      const cleanUrl = window.location.origin + window.location.pathname;
+      const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(cleanUrl)}`;
+      document.getElementById("qr-image-el").src = qrApi;
+      document.getElementById("qr-url-label").innerText = cleanUrl;
       openModal("qr-modal");
     }
 
